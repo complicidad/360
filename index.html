@@ -119,9 +119,6 @@
             return <canvas ref={canvasRef} />;
         };
 
-        // ==========================================
-        // MÓDULO 1: FINANZAS (Íntegro de BDCostos.html)
-        // ==========================================
         const initialCashFlow = [];
         const addMonthsToDate = (dateStr, months) => {
           const date = new Date(dateStr + 'T00:00:00'); 
@@ -136,6 +133,283 @@
             return { remainingDays, status: remainingDays < 0 ? 'CORTE' : 'ACTIVO' };
         };
 
+        // ==========================================
+        // NUEVO MÓDULO: VISIÓN CLIENTE 360°
+        // ==========================================
+        const Client360Module = ({ cashFlow, kpis }) => {
+            const [searchTerm, setSearchTerm] = useState('');
+            const [result, setResult] = useState(null);
+            const [hasSearched, setHasSearched] = useState(false);
+
+            const handleSearch = (e) => {
+                e.preventDefault();
+                if (!searchTerm || searchTerm.trim().length < 3) return;
+                setHasSearched(true);
+
+                const termClean = searchTerm.replace(/\D/g, '');
+                const termLower = searchTerm.toLowerCase();
+
+                let crmUser = null;
+                let crmConfig = null;
+                let crmOrders = [];
+                
+                // 1. Buscar en CRM
+                if (kpis && kpis.raw) {
+                    const matchedUID = Object.keys(kpis.raw.usersMap).find(uid => {
+                        const u = kpis.raw.usersMap[uid];
+                        const matchPhone = termClean.length >= 3 && (u.phone || '').replace(/\D/g, '').includes(termClean);
+                        const matchName = (u.name || '').toLowerCase().includes(termLower);
+                        return matchPhone || matchName;
+                    });
+
+                    if (matchedUID) {
+                        crmUser = kpis.raw.usersMap[matchedUID];
+                        crmConfig = kpis.raw.configDict[matchedUID];
+                        crmOrders = kpis.raw.orders.filter(ord => (ord.MerchantID || ord.UID) === matchedUID);
+                        crmOrders.sort((a,b) => (parseSafeDate(b.Date || b.date || b.CreatedAt) || new Date(0)) - (parseSafeDate(a.Date || a.date || a.CreatedAt) || new Date(0)));
+                    }
+                }
+
+                // 2. Buscar en Finanzas
+                let finPayments = [];
+                if (cashFlow && cashFlow.length > 0) {
+                    finPayments = cashFlow.filter(item => {
+                        const cStr = String(item.client || '');
+                        const cClean = cStr.replace(/\D/g, '');
+                        const cLower = cStr.toLowerCase();
+                        
+                        let matched = false;
+                        if (termClean.length >= 3 && cClean.includes(termClean)) matched = true;
+                        else if (termLower.length >= 3 && cLower.includes(termLower)) matched = true;
+                        else if (crmUser) {
+                            const searchPhone = (crmUser.phone || '').replace(/\D/g, '');
+                            const searchName = (crmUser.name || '').toLowerCase();
+                            if (searchPhone.length >= 3 && cClean.includes(searchPhone)) matched = true;
+                            else if (searchName.length >= 3 && cLower.includes(searchName)) matched = true;
+                        }
+                        return matched;
+                    }).sort((a,b) => new Date(b.date) - new Date(a.date));
+                }
+
+                if (!crmUser && finPayments.length === 0) {
+                    setResult(null);
+                } else {
+                    // Procesar Datos Financieros Derivados
+                    let subDetails = null;
+                    let ltv = 0;
+                    
+                    finPayments.forEach(p => { if (p.income > 0) ltv += p.income; });
+
+                    const ascPayments = [...finPayments].reverse();
+                    let subObj = { startDate: null, endDate: null, activeMonths: 0 };
+                    
+                    ascPayments.forEach(entry => {
+                        if (entry.income > 0) {
+                            const conceptStr = String(entry.concept || '');
+                            const match = conceptStr.match(/x\s*(\d+)\s*mes/i);
+                            const months = match ? parseInt(match[1]) : 0;
+                            const isSaas = entry.category && entry.category.includes('SaaS');
+                            const wasFormalOrInformalBeforeUpdate = !entry.category && entry.voucher; 
+                            
+                            if (months > 0 && (isSaas || wasFormalOrInformalBeforeUpdate)) {
+                                if (!subObj.startDate) {
+                                    subObj.startDate = entry.date;
+                                    subObj.endDate = addMonthsToDate(entry.date, months);
+                                    subObj.activeMonths = months;
+                                } else {
+                                    const baseDate = new Date(subObj.endDate) > new Date(entry.date) ? subObj.endDate : entry.date;
+                                    subObj.endDate = addMonthsToDate(baseDate, months);
+                                    subObj.activeMonths += months;
+                                }
+                            }
+                        }
+                    });
+
+                    if (subObj.endDate) {
+                        const { remainingDays, status } = calculateSubStatus(subObj.endDate);
+                        subDetails = { ...subObj, remainingDays, status };
+                    }
+
+                    setResult({
+                        crm: crmUser ? { user: crmUser, config: crmConfig, orders: crmOrders } : null,
+                        finance: { payments: finPayments, sub: subDetails, ltv }
+                    });
+                }
+            };
+
+            return (
+                <div className="animate-fade-in-up max-w-6xl mx-auto space-y-6 pb-12">
+                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center">
+                        <h2 className="text-3xl font-black text-slate-800 flex justify-center items-center gap-3 mb-3">
+                           <Globe className="text-blue-600 w-8 h-8"/> Perfil de Cliente 360°
+                        </h2>
+                        <p className="text-slate-500 mb-8 font-medium">Busca un comercio por teléfono o nombre para cruzar sus datos financieros y operativos al instante.</p>
+                        
+                        <form onSubmit={handleSearch} className="max-w-2xl mx-auto relative group">
+                           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={24}/>
+                           <input 
+                               type="text" 
+                               placeholder="Ej. 987654321 o 'Mi Tiendita'" 
+                               className="w-full pl-14 pr-36 py-5 rounded-2xl border-2 border-slate-200 focus:border-blue-500 outline-none text-lg shadow-sm transition-all"
+                               value={searchTerm}
+                               onChange={e => setSearchTerm(e.target.value)}
+                           />
+                           <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg">
+                               Buscar 360°
+                           </button>
+                        </form>
+                        
+                        {(!kpis || cashFlow.length === 0) && (
+                            <div className="mt-6 inline-flex items-center gap-2 bg-amber-50 text-amber-700 px-5 py-2.5 rounded-xl text-sm font-bold border border-amber-200">
+                                <AlertTriangle size={18}/> Para un cruce completo, asegúrate de haber cargado el Excel B2B y conectado tu Base de Finanzas.
+                            </div>
+                        )}
+                    </div>
+
+                    {hasSearched && !result && (
+                         <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 shadow-sm animate-fade-in">
+                            <AlertCircle className="mx-auto text-slate-300 w-20 h-20 mb-4"/>
+                            <p className="text-slate-500 font-bold text-xl">No se encontraron coincidencias.</p>
+                            <p className="text-slate-400 mt-2">Prueba buscando con otro nombre u otro número de teléfono.</p>
+                         </div>
+                    )}
+
+                    {result && (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
+                            {/* Panel Finanzas */}
+                            <div className="space-y-6">
+                                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                                    <h3 className="font-black text-slate-800 text-lg mb-6 flex items-center gap-2 border-b pb-4"><Wallet className="text-emerald-500"/> Estado Financiero</h3>
+                                    
+                                    {result.finance.sub ? (
+                                        <div className={`border rounded-xl p-5 mb-5 ${result.finance.sub.remainingDays < 0 ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-200'}`}>
+                                            <p className={`text-sm font-bold mb-1 ${result.finance.sub.remainingDays < 0 ? 'text-rose-800' : 'text-emerald-800'}`}>Estado Suscripción SaaS</p>
+                                            <div className="flex items-end justify-between">
+                                                <p className={`text-3xl font-black ${result.finance.sub.remainingDays < 0 ? 'text-rose-900' : 'text-emerald-900'}`}>{result.finance.sub.status}</p>
+                                                <p className={`font-bold text-lg px-3 py-1 rounded-lg ${result.finance.sub.remainingDays < 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>{result.finance.sub.remainingDays} días rest.</p>
+                                            </div>
+                                            <p className={`text-xs mt-3 font-medium ${result.finance.sub.remainingDays < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>Vencimiento Calculado: {result.finance.sub.endDate}</p>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-5 text-center">
+                                            <p className="text-slate-500 font-bold">Sin suscripción activa detectada.</p>
+                                            <p className="text-slate-400 text-xs mt-1">Este cliente no registra pagos de meses SaaS en Caja.</p>
+                                        </div>
+                                    )}
+                                    
+                                    <div className="flex justify-between items-center bg-gradient-to-r from-slate-800 to-slate-900 p-5 rounded-xl text-white shadow-md">
+                                        <div>
+                                            <span className="font-bold text-slate-300 block mb-1 text-sm uppercase tracking-wider">Life-Time Value (LTV)</span>
+                                            <span className="text-xs text-slate-400">Total ingresos históricos</span>
+                                        </div>
+                                        <span className="text-3xl font-black text-emerald-400">S/ {result.finance.ltv.toFixed(2)}</span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <div className="bg-slate-50 p-5 border-b border-slate-200">
+                                        <h4 className="font-bold text-slate-800 flex items-center gap-2"><Receipt size={18} className="text-blue-500"/> Historial de Pagos en Caja ({result.finance.payments.length})</h4>
+                                    </div>
+                                    <div className="max-h-[300px] overflow-y-auto p-0">
+                                        <table className="w-full text-left text-sm">
+                                            <thead className="bg-white sticky top-0 shadow-sm">
+                                                <tr><th className="p-3 text-slate-400 font-semibold text-xs uppercase tracking-wider">Fecha</th><th className="p-3 text-slate-400 font-semibold text-xs uppercase tracking-wider">Concepto</th><th className="p-3 text-slate-400 font-semibold text-xs uppercase tracking-wider text-right">Monto</th></tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {result.finance.payments.map((p, i) => (
+                                                    <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                        <td className="p-4 font-mono text-slate-500 text-xs">{p.date}</td>
+                                                        <td className="p-4 font-bold text-slate-700">{p.concept}</td>
+                                                        <td className={`p-4 text-right font-black ${p.income > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>S/ {(p.income || p.expense).toFixed(2)}</td>
+                                                    </tr>
+                                                ))}
+                                                {result.finance.payments.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-slate-400 font-bold">No se encontraron transacciones financieras.</td></tr>}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Panel CRM */}
+                            <div className="space-y-6">
+                                <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                                    <h3 className="font-black text-slate-800 text-lg mb-6 flex items-center gap-2 border-b pb-4"><Activity className="text-indigo-500"/> Estado Operativo B2B</h3>
+                                    
+                                    {result.crm ? (
+                                        <>
+                                            <div className="grid grid-cols-2 gap-4 mb-6">
+                                                <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5">
+                                                    <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2">Plan Actual B2B</p>
+                                                    <p className="text-2xl font-black text-indigo-900">{result.crm.user.plan}</p>
+                                                    <div className="mt-3 flex items-center gap-2 text-xs font-medium text-indigo-700 bg-indigo-100/50 px-2 py-1 rounded">
+                                                        {result.crm.user.hasUsedTrial ? <CheckCircle2 size={14}/> : <X size={14}/>} {result.crm.user.hasUsedTrial ? 'Usó su Prueba' : 'Nunca usó Prueba'}
+                                                    </div>
+                                                </div>
+                                                <div className="bg-blue-50 border border-blue-100 rounded-xl p-5">
+                                                    <p className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">Total Pedidos</p>
+                                                    <p className="text-2xl font-black text-blue-900">{result.crm.orders.length}</p>
+                                                    <div className="mt-3 flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-100/50 px-2 py-1 rounded">
+                                                        <TrendingUp size={14}/> {result.crm.orders.filter(o => o.Status === 'ENVIADO').length} Enviados Exitosos
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
+                                                <h4 className="font-bold text-slate-800 mb-4 text-sm flex items-center gap-2"><Database size={16} className="text-slate-500"/> Configuración de su App</h4>
+                                                <div className="space-y-3 text-sm">
+                                                    <div className="flex justify-between border-b border-slate-200 pb-2"><span className="font-bold text-slate-500">Nombre Tienda:</span> <span className="font-bold text-slate-800">{result.crm.user.name || 'No Configurado'}</span></div>
+                                                    <div className="flex justify-between border-b border-slate-200 pb-2"><span className="font-bold text-slate-500">Teléfono Enlazado:</span> <span className="font-bold text-slate-800">{result.crm.user.phone || 'N/A'}</span></div>
+                                                    <div className="flex justify-between border-b border-slate-200 pb-2"><span className="font-bold text-slate-500">Couriers Activos:</span> <span className="font-bold text-indigo-600 bg-indigo-50 px-2 rounded">{result.crm.config?.couriers?.join(', ') || 'N/A'}</span></div>
+                                                    <div className="flex justify-between"><span className="font-bold text-slate-500">Antigüedad (Creado en):</span> <span className="font-bold text-slate-800">{result.crm.user.createdAtFormatted}</span></div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-10 text-center h-[320px] flex flex-col justify-center items-center">
+                                            <Users size={40} className="text-slate-300 mb-4"/>
+                                            <p className="text-slate-500 font-bold mb-2">Comercio no encontrado en el Maestro B2B.</p>
+                                            <p className="text-sm text-slate-400 max-w-xs mx-auto">Este cliente tiene registros en finanzas, pero no existe o no ha sido cargado en el Excel analítico actual.</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {result.crm && (
+                                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                        <div className="bg-slate-50 p-5 border-b border-slate-200">
+                                            <h4 className="font-bold text-slate-800 flex items-center gap-2"><Package size={18} className="text-blue-500"/> Pedidos Recientes (Top 5)</h4>
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto p-0">
+                                            <table className="w-full text-left text-sm">
+                                                <thead className="bg-white sticky top-0 shadow-sm">
+                                                    <tr><th className="p-3 text-slate-400 font-semibold text-xs uppercase tracking-wider">Fecha</th><th className="p-3 text-slate-400 font-semibold text-xs uppercase tracking-wider">Courier</th><th className="p-3 text-slate-400 font-semibold text-xs uppercase tracking-wider text-right">Estado</th></tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                    {result.crm.orders.slice(0,5).map((o, i) => {
+                                                        const d = safeJSONParse(o.DataJSON);
+                                                        return (
+                                                            <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                                                <td className="p-4 font-mono text-slate-500 text-xs">{formatNiceDateOnly(o.Date || o.date || o.CreatedAt)}</td>
+                                                                <td className="p-4 font-bold text-slate-700">{d.courier || 'N/A'}</td>
+                                                                <td className="p-4 text-right"><span className={`px-2 py-1 rounded-md text-[10px] uppercase tracking-wider font-black ${o.Status === 'ENVIADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{o.Status}</span></td>
+                                                            </tr>
+                                                        )
+                                                    })}
+                                                    {result.crm.orders.length === 0 && <tr><td colSpan="3" className="p-8 text-center text-slate-400 font-bold">No hay pedidos registrados.</td></tr>}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )
+        };
+
+        // ==========================================
+        // MÓDULO 1: FINANZAS (Íntegro de BDCostos.html)
+        // ==========================================
         const appsScriptCode = `function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
@@ -488,8 +762,7 @@ function doGet(e) {
           );
         };
 
-        const FinanceModule = ({ activeSubTab, setNotification }) => {
-          const [cashFlow, setCashFlow] = useState(initialCashFlow);
+        const FinanceModule = ({ activeSubTab, setNotification, cashFlow, setCashFlow }) => {
           const [showCashFlowModal, setShowCashFlowModal] = useState(false);
           const [editingRecord, setEditingRecord] = useState(null);
           const [isSaving, setIsSaving] = useState(false);
@@ -1020,9 +1293,8 @@ function doGet(e) {
         // ==========================================
         // MÓDULO 2: CRM B2B & ANALYTICS (Íntegro de BDClientes.html)
         // ==========================================
-        const CrmModule = ({ setNotification }) => {
+        const CrmModule = ({ setNotification, kpis, setKpis }) => {
           const [excelFile, setExcelFile] = useState(null);
-          const [kpis, setKpis] = useState(null);
           const [loading, setLoading] = useState(false);
           const [error, setError] = useState('');
           const [searchTerm, setSearchTerm] = useState('');
@@ -1478,7 +1750,7 @@ function doGet(e) {
                     {/* Buscador CRM */}
                     <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 mt-6">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b pb-4">
-                            <div className="flex items-center gap-2"><Search className="w-6 h-6 text-indigo-500" /><h3 className="font-bold text-slate-800 text-lg">Buscador CRM de Clientes</h3></div>
+                            <div className="flex items-center gap-2"><Search className="w-6 h-6 text-indigo-500" /><h3 className="font-bold text-slate-800 text-lg">Buscador Básico CRM (Solo Excel)</h3></div>
                             <div className="relative w-full md:w-1/2">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                                 <input type="text" placeholder="Buscar por celular o nombre de tienda..." className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 font-medium" value={searchTerm} onChange={handleSearch} />
@@ -1665,7 +1937,7 @@ function doGet(e) {
                     {/* Directorio Oportunidades 360 */}
                     <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-200 mt-2 mb-4">
                          <div className="flex items-center justify-between mb-6 border-b pb-3">
-                            <div className="flex items-center gap-2"><Flame className="w-6 h-6 text-rose-500" /><h2 className="text-xl font-bold text-slate-800">Directorio de Oportunidades 360°</h2></div>
+                            <div className="flex items-center gap-2"><Flame className="w-6 h-6 text-rose-500" /><h2 className="text-xl font-bold text-slate-800">Directorio de Oportunidades CRM</h2></div>
                             <div className="flex gap-4 text-xs font-bold">
                                 <span className="flex items-center gap-1 text-rose-600"><span className="w-2 h-2 rounded-full bg-rose-500"></span> Caliente</span>
                                 <span className="flex items-center gap-1 text-amber-600"><span className="w-2 h-2 rounded-full bg-amber-500"></span> Tibio</span>
@@ -1853,7 +2125,7 @@ function doGet(e) {
           const formatCurrency = (amount) => new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(amount);
 
           return (
-            <div className="animate-fade-in max-w-5xl mx-auto space-y-6">
+            <div className="animate-fade-in max-w-5xl mx-auto space-y-6 pb-12">
               <header className="text-center space-y-2 mb-8">
                 <h1 className="text-3xl font-black text-slate-900 flex items-center justify-center gap-3"><Calculator className="w-8 h-8 text-blue-600" /> Lector Rápido de Movimientos</h1>
                 <p className="text-slate-500 font-medium">Analiza, clasifica y reorganiza tu Estado de Cuenta en segundos</p>
@@ -1936,6 +2208,10 @@ function doGet(e) {
           const [notification, setNotification] = useState(null);
           const [sidebarOpen, setSidebarOpen] = useState(true);
 
+          // Estados globales elevados para cruce de datos
+          const [cashFlow, setCashFlow] = useState(initialCashFlow);
+          const [kpis, setKpis] = useState(null);
+
           useEffect(() => {
             if(notification) { const timer = setTimeout(() => setNotification(null), 4000); return () => clearTimeout(timer); }
           }, [notification]);
@@ -1969,6 +2245,12 @@ function doGet(e) {
                  </div>
                  
                  <div className="flex-1 overflow-y-auto hide-scroll p-3 space-y-6 mt-2">
+                    {/* Inteligencia 360 */}
+                    <div>
+                       {sidebarOpen && <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2 ml-2">Inteligencia</p>}
+                       <NavItem id="client-360" icon={Globe} label={sidebarOpen ? "Visión 360°" : ""} />
+                    </div>
+
                     {/* Grupo Finanzas */}
                     <div>
                        {sidebarOpen && <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2 ml-2">Finanzas</p>}
@@ -1992,20 +2274,25 @@ function doGet(e) {
                  </div>
               </aside>
 
-              {/* Área Principal Contenido (Retención de Estado vía CSS classes) */}
+              {/* Área Principal Contenido */}
               <main className="flex-1 h-screen overflow-y-auto p-4 md:p-8 bg-slate-50/50">
                  
-                 {/* Módulo de Finanzas - Solo se muestra si el ID empieza con 'finance-' */}
+                 {/* Módulo Cliente 360 */}
+                 <div className={activeModule === 'client-360' ? 'block' : 'hidden'}>
+                     <Client360Module cashFlow={cashFlow} kpis={kpis} />
+                 </div>
+
+                 {/* Módulo de Finanzas */}
                  <div className={activeModule.startsWith('finance') ? 'block' : 'hidden'}>
-                     <FinanceModule activeSubTab={activeModule.replace('finance-', '')} setNotification={setNotification} />
+                     <FinanceModule activeSubTab={activeModule.replace('finance-', '')} setNotification={setNotification} cashFlow={cashFlow} setCashFlow={setCashFlow} />
                  </div>
 
-                 {/* Módulo CRM - Visible si el ID es 'crm-analytics' */}
+                 {/* Módulo CRM */}
                  <div className={activeModule === 'crm-analytics' ? 'block' : 'hidden'}>
-                     <CrmModule setNotification={setNotification} />
+                     <CrmModule setNotification={setNotification} kpis={kpis} setKpis={setKpis} />
                  </div>
 
-                 {/* Módulo Parser - Visible si el ID es 'tools-parser' */}
+                 {/* Módulo Parser */}
                  <div className={activeModule === 'tools-parser' ? 'block' : 'hidden'}>
                      <StatementModule />
                  </div>
