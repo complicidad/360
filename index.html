@@ -702,8 +702,19 @@ function doGet(e) {
 
         const ModalCashFlow = ({ onClose, onSave, isSaving, initialData }) => {
           const isEdit = !!initialData;
-          const [type, setType] = useState(isEdit ? (initialData.income > 0 ? 'ingreso' : 'egreso') : 'ingreso');
-          const [category, setCategory] = useState(isEdit ? (initialData.category || 'Ventas SaaS (Formal)') : 'Ventas SaaS (Formal)');
+          const initialType = isEdit ? (initialData.income > 0 ? 'ingreso' : 'egreso') : 'ingreso';
+          const [type, setType] = useState(initialType);
+          
+          const getInitialCategory = () => {
+             if (!isEdit) return 'Ventas SaaS (Formal)';
+             let cat = initialData.category;
+             if (!cat) return initialType === 'ingreso' ? ((initialData.voucher || '').includes('Pendiente') ? 'Ventas SaaS (Informal)' : 'Ventas SaaS (Formal)') : 'Egresos Generales';
+             if (cat === 'SaaS (Ingresos)' || cat === 'SaaS') return 'Ventas SaaS (Formal)';
+             if (cat === 'Informal (Ingresos)' || cat === 'Informal') return 'Ventas SaaS (Informal)';
+             return cat;
+          };
+          
+          const [category, setCategory] = useState(getInitialCategory());
           
           let initMonths = 1;
           if (isEdit && initialData.concept) {
@@ -711,7 +722,13 @@ function doGet(e) {
              if (match) initMonths = parseInt(match[1], 10);
           }
           const [months, setMonths] = useState(initMonths);
-          const [date, setDate] = useState(isEdit ? initialData.date : new Date().toISOString().split('T')[0]);
+          
+          const getLocalToday = () => {
+             const d = new Date();
+             d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+             return d.toISOString().split('T')[0];
+          };
+          const [date, setDate] = useState(isEdit ? initialData.date : getLocalToday());
           const [voucherType, setVoucherType] = useState(isEdit ? (initialData.voucher || 'Pendiente / Sin Comprobante') : 'Pendiente / Sin Comprobante');
           const [promoBienvenida, setPromoBienvenida] = useState(false);
           const [manualConcept, setManualConcept] = useState(isEdit ? initialData.concept : 'Suscripción x 1 mes');
@@ -917,12 +934,33 @@ function doGet(e) {
               if (data.cashFlow) {
                 const parsedCashFlow = data.cashFlow.map(item => {
                   const monto = Number(item.monto) || 0;
+                  let rawCategory = item.category;
+                  let resolvedCategory = rawCategory;
+                  
+                  if (!rawCategory) {
+                     if (monto >= 0) {
+                        resolvedCategory = (item.voucher === 'Pendiente / Sin Comprobante' || item.voucher === 'Pendiente') ? 'Ventas SaaS (Informal)' : 'Ventas SaaS (Formal)';
+                     } else {
+                        resolvedCategory = 'Egresos Generales';
+                     }
+                  } else if (rawCategory === 'SaaS (Ingresos)' || rawCategory === 'SaaS') {
+                     resolvedCategory = 'Ventas SaaS (Formal)';
+                  } else if (rawCategory === 'Informal (Ingresos)' || rawCategory === 'Informal') {
+                     resolvedCategory = 'Ventas SaaS (Informal)';
+                  }
+
                   return {
-                    id: item.id || Date.now() + Math.random(), date: item.date ? String(item.date).split('T')[0] : '',
-                    client: String(item.client || ''), concept: String(item.concept || ''),
-                    category: item.category || (item.voucher === 'Pendiente / Sin Comprobante' || item.voucher === 'Pendiente' ? 'Informal (Ingresos)' : 'SaaS (Ingresos)'),
-                    income: monto > 0 ? monto : 0, expense: monto < 0 ? Math.abs(monto) : 0,
-                    method: String(item.method || ''), voucher: String(item.voucher || ''), voucherUrl: item.voucherUrl || '', notes: item.notes || ''
+                    id: item.id || Date.now() + Math.random(), 
+                    date: item.date ? String(item.date).split('T')[0] : '',
+                    client: String(item.client || ''), 
+                    concept: String(item.concept || ''),
+                    category: resolvedCategory,
+                    income: monto > 0 ? monto : 0, 
+                    expense: monto < 0 ? Math.abs(monto) : 0,
+                    method: String(item.method || ''), 
+                    voucher: String(item.voucher || ''), 
+                    voucherUrl: item.voucherUrl || '', 
+                    notes: item.notes || ''
                   };
                 });
                 setCashFlow(parsedCashFlow);
@@ -1125,7 +1163,7 @@ function doGet(e) {
                 income: data.income || 0, expense: data.expense || 0
             };
 
-            if (isUpdate) setCashFlow(prev => prev.map(item => item.id === newCashEntry.id ? newCashEntry : item));
+            if (isUpdate) setCashFlow(prev => prev.map(item => String(item.id) === String(newCashEntry.id) ? newCashEntry : item));
             else setCashFlow(prev => [...prev, newCashEntry]);
             
             if (!scriptUrl || scriptUrl.trim() === '') {
