@@ -11,6 +11,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- Import Map para resolver dependencias de React y JSX Runtime correctamente -->
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@18.2.0",
+            "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+            "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.263.1"
+        }
+    }
+    </script>
+
     <style>
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -37,8 +49,8 @@
     <div id="root"></div>
 
     <script type="text/babel" data-type="module">
-        import React, { useState, useMemo, useEffect, useRef } from 'https://esm.sh/react@18.2.0';
-        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        import React, { useState, useMemo, useEffect, useRef } from 'react';
+        import { createRoot } from 'react-dom/client';
         import { 
           // Iconos Generales & Navegación
           LayoutDashboard, Wallet, Users, Settings, Database, Briefcase, FileText, Menu,
@@ -48,7 +60,7 @@
           UploadCloud, BarChart2, Package, Truck, Lightbulb, MessageCircle, Flame, Star, Activity, BadgeCheck, CheckCircle,
           // Iconos Parser
           AlignLeft, Calculator, List, Receipt, ArrowRightLeft, FolderSync
-        } from 'https://esm.sh/lucide-react@0.263.1';
+        } from 'lucide-react';
 
         // ==========================================
         // UTILERÍAS COMPARTIDAS Y GRÁFICOS (CORE)
@@ -109,22 +121,28 @@
             const chartRef = useRef(null);
 
             useEffect(() => {
+                if (!canvasRef.current || !window.Chart) return;
                 const ctx = canvasRef.current.getContext('2d');
-                Chart.defaults.font.family = 'ui-sans-serif, system-ui, sans-serif';
+                window.Chart.defaults.font.family = 'ui-sans-serif, system-ui, sans-serif';
                 if (chartRef.current) chartRef.current.destroy();
-                chartRef.current = new Chart(ctx, { type, data, options });
-                return () => { if (chartRef.current) chartRef.current.destroy(); };
+                chartRef.current = new window.Chart(ctx, { type, data, options });
+                
+                return () => { 
+                    if (chartRef.current) chartRef.current.destroy(); 
+                };
             }, [data, options, type]);
 
             return <canvas ref={canvasRef} />;
         };
 
         const initialCashFlow = [];
+        
         const addMonthsToDate = (dateStr, months) => {
           const date = new Date(dateStr + 'T00:00:00'); 
           date.setMonth(date.getMonth() + Number(months));
           return date.toISOString().split('T')[0];
         };
+        
         const calculateSubStatus = (endDateStr) => {
             const today = new Date();
             const endDate = new Date(endDateStr + 'T00:00:00');
@@ -197,15 +215,13 @@ function doGet(e) {
             const [result, setResult] = useState(null);
             const [hasSearched, setHasSearched] = useState(false);
             const [activeList, setActiveList] = useState(null);
-            
-            // Estado para el detalle de pedidos
             const [activeOrderTab, setActiveOrderTab] = useState(null); 
 
             const performSearch = (termToSearch) => {
                 if (!termToSearch || termToSearch.trim().length < 3) return;
                 setSearchTerm(termToSearch);
                 setHasSearched(true);
-                setActiveOrderTab(null); // Reseteamos la vista de pedidos
+                setActiveOrderTab(null);
 
                 const termClean = termToSearch.replace(/\D/g, '');
                 const termLower = termToSearch.toLowerCase();
@@ -338,7 +354,6 @@ function doGet(e) {
                 )
             };
 
-            // Helpers para los estados de pedido
             let ordersEnviados = [];
             let ordersPendientes = [];
             let ordersEliminados = [];
@@ -352,7 +367,7 @@ function doGet(e) {
             return (
                 <div className="animate-fade-in-up max-w-7xl mx-auto space-y-6 pb-12">
                     
-                    {/* Tarjetas de Segmentación CRM (Directorio Global) */}
+                    {/* Tarjetas de Segmentación CRM */}
                     {kpis && (
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
                             <div onClick={() => setActiveList(activeList === 'PRO' ? null : 'PRO')} className={`p-5 rounded-2xl border cursor-pointer transition-all hover:-translate-y-1 ${activeList === 'PRO' ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-400/20' : 'bg-white border-slate-200 hover:border-blue-300 shadow-sm'}`}>
@@ -513,7 +528,7 @@ function doGet(e) {
                                 </div>
                             </div>
                             
-                            {/* Desglose de Pedidos CRM (Ancho Completo) */}
+                            {/* Desglose de Pedidos CRM */}
                             {result.crm && (
                                 <div className="lg:col-span-2 space-y-4">
                                     <h3 className="font-black text-slate-800 text-lg flex items-center gap-2"><Package className="text-indigo-500"/> Desglose de Pedidos B2B</h3>
