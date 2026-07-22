@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Cuentas - Planes</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for textarea and table */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9; 
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+
+    <div class="p-4 md:p-8">
+        <div class="max-w-6xl mx-auto space-y-6">
+            
+            <!-- Encabezado -->
+            <header class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-center gap-4">
+                <div class="p-3 bg-indigo-100 text-indigo-600 rounded-xl">
+                    <i data-lucide="calendar-x" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900">Gestor de Cuentas</h1>
+                    <p class="text-slate-500">Encuentra usuarios con planes vencidos o cuentas gratis elegibles para prueba.</p>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Columna Izquierda: Input -->
+                <div class="lg:col-span-1 space-y-4">
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col h-[500px]">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold flex items-center gap-2">
+                                <i data-lucide="file-json" class="w-5 h-5 text-slate-400"></i>
+                                Datos JSON
+                            </h2>
+                            <button onclick="app.handleClear()" class="text-slate-400 hover:text-red-500 transition-colors" title="Limpiar texto">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        
+                        <textarea
+                            id="json-input"
+                            class="flex-grow w-full bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none transition-shadow"
+                            placeholder="Pega tu array de objetos JSON aquí..."
+                        ></textarea>
+                        
+                        <button
+                            onclick="app.handleProcessData()"
+                            class="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm"
+                        >
+                            <i data-lucide="search" class="w-5 h-5"></i>
+                            Procesar Datos
+                        </button>
+                    </div>
+                    
+                    <!-- Mensaje de Error (Oculto por defecto) -->
+                    <div id="error-container" class="hidden bg-red-50 text-red-700 border border-red-200 p-4 rounded-xl flex gap-3 items-start animate-in fade-in slide-in-from-top-2">
+                        <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 mt-0.5"></i>
+                        <p id="error-message" class="text-sm"></p>
+                    </div>
+                </div>
+
+                <!-- Columna Derecha: Resultados -->
+                <div class="lg:col-span-2 space-y-4">
+                    
+                    <!-- Estadísticas / Tarjetas -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Tarjeta Plan Pro -->
+                        <div 
+                            id="card-pro"
+                            onclick="app.setActiveTab('pro')"
+                            class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col justify-between cursor-pointer transition-all hover:border-indigo-300"
+                        >
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Plan Pro</h3>
+                                    <span class="p-2 bg-amber-100 text-amber-600 rounded-lg"><i data-lucide="crown" class="w-[18px] h-[18px]"></i></span>
+                                </div>
+                                <p id="stat-pro-total" class="text-3xl font-bold text-slate-800">0</p>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-100">
+                                <p class="text-xs text-slate-500 flex items-center gap-1"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Cuentas activas</p>
+                            </div>
+                        </div>
+
+                        <!-- Tarjeta Plan Pro (Prueba) -->
+                        <div 
+                            id="card-proPrueba"
+                            onclick="app.setActiveTab('proPruebaVencidos')"
+                            class="bg-white rounded-2xl shadow-sm border border-indigo-500 ring-2 ring-indigo-100 p-4 flex flex-col justify-between cursor-pointer transition-all"
+                        >
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Pro (Prueba)</h3>
+                                    <span class="p-2 bg-indigo-100 text-indigo-600 rounded-lg"><i data-lucide="clock" class="w-[18px] h-[18px]"></i></span>
+                                </div>
+                                <p id="stat-proPrueba-total" class="text-3xl font-bold text-slate-800">0</p>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between">
+                                <div 
+                                    class="text-center p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
+                                    onclick="event.stopPropagation(); app.setActiveTab('proPruebaActivos');"
+                                >
+                                    <p class="text-xs text-slate-400 mb-1">Activos</p>
+                                    <p id="stat-proPrueba-activos" class="text-sm font-semibold text-emerald-600">0</p>
+                                </div>
+                                <div 
+                                    class="text-center p-1 -m-1 rounded hover:bg-slate-50 transition-colors"
+                                    onclick="event.stopPropagation(); app.setActiveTab('proPruebaVencidos');"
+                                >
+                                    <p class="text-xs text-slate-400 mb-1">Vencidos</p>
+                                    <p id="stat-proPrueba-vencidos" class="text-sm font-semibold text-rose-600">0</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tarjeta Plan Gratis -->
+                        <div 
+                            id="card-gratis"
+                            onclick="app.setActiveTab('gratisElegibles')"
+                            class="bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-indigo-300 p-4 flex flex-col justify-between relative overflow-hidden cursor-pointer transition-all"
+                        >
+                            <div class="absolute inset-0 bg-slate-50/50 pointer-events-none"></div>
+                            <div class="relative z-10">
+                                <div class="flex justify-between items-center mb-2">
+                                    <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Plan Gratis</h3>
+                                    <span class="p-2 bg-slate-200 text-slate-600 rounded-lg"><i data-lucide="user" class="w-[18px] h-[18px]"></i></span>
+                                </div>
+                                <p id="stat-gratis-total" class="text-3xl font-bold text-slate-800">0</p>
+                            </div>
+                            <div class="relative z-10 mt-4 pt-3 border-t border-slate-200 flex justify-between">
+                                <div 
+                                    class="text-center p-1 -m-1 rounded hover:bg-slate-200/50 transition-colors"
+                                    onclick="event.stopPropagation(); app.setActiveTab('gratisElegibles');"
+                                >
+                                    <p class="text-xs text-slate-500 mb-1">Elegibles</p>
+                                    <p id="stat-gratis-elegibles" class="text-sm font-semibold text-emerald-600">0</p>
+                                </div>
+                                <div 
+                                    class="text-center p-1 -m-1 rounded hover:bg-slate-200/50 transition-colors"
+                                    onclick="event.stopPropagation(); app.setActiveTab('gratisVencidos');"
+                                >
+                                    <p class="text-xs text-slate-500 mb-1">Vencidos</p>
+                                    <p id="stat-gratis-vencidos" class="text-sm font-semibold text-rose-600">0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Resultados -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col h-[412px] lg:h-[400px]">
+                        <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between bg-slate-50/50 rounded-t-2xl gap-4 sm:gap-0">
+                            
+                            <!-- Pestañas Dinámicas -->
+                            <div id="dynamic-tabs" class="flex flex-wrap bg-slate-200/50 p-1 rounded-xl gap-1 min-h-[44px] items-center">
+                                <!-- Tabs injected via JS -->
+                            </div>
+                            
+                            <!-- Botón Copiar -->
+                            <div id="copy-btn-container" class="hidden">
+                                <button
+                                    id="btn-copy"
+                                    onclick="app.copyPhonesToClipboard()"
+                                    class="text-sm flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl transition-colors border shadow-sm shrink-0 bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-indigo-600"
+                                >
+                                    <i data-lucide="copy" class="w-4 h-4"></i>
+                                    <span>Copiar</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Contenido de la Tabla -->
+                        <div class="flex-grow overflow-auto p-0 relative">
+                            <!-- Estado Vacío -->
+                            <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 p-6 text-center bg-white z-20">
+                                <i data-lucide="search" class="w-12 h-12 mb-4 opacity-20"></i>
+                                <p>No hay datos para mostrar en esta lista.</p>
+                                <p class="text-sm mt-1">Pega el JSON y presiona "Procesar Datos".</p>
+                            </div>
+
+                            <!-- Tabla Real -->
+                            <table id="results-table" class="hidden w-full text-left border-collapse">
+                                <thead class="bg-white sticky top-0 shadow-sm shadow-slate-100 z-10 text-xs uppercase text-slate-500">
+                                    <tr>
+                                        <th class="px-6 py-3 font-semibold border-b border-slate-200">Teléfono</th>
+                                        <th id="th-date" class="px-6 py-3 font-semibold border-b border-slate-200">Fecha</th>
+                                        <th class="px-6 py-3 font-semibold border-b border-slate-200">UID</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-body" class="divide-y divide-slate-100 text-sm">
+                                    <!-- Rows injected via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Inicializar iconos de Lucide al cargar la página
+        lucide.createIcons();
+
+        // Estado global de la aplicación
+        const state = {
+            inputData: '',
+            lists: {
+                pro: [],
+                proPruebaActivos: [],
+                proPruebaVencidos: [],
+                gratisElegibles: [],
+                gratisVencidos: []
+            },
+            stats: {
+                pro: 0,
+                proPrueba: 0,
+                proPruebaVencidos: 0,
+                gratis: 0,
+                gratisElegibles: 0,
+                gratisVencidos: 0
+            },
+            activeTab: 'proPruebaVencidos',
+            error: null,
+            isCopied: false
+        };
+
+        // Objeto global de la aplicación para enlazar con eventos del DOM
+        window.app = {
+            
+            // Función auxiliar para formatear la fecha
+            formatDate: function(dateString) {
+                if (!dateString) return "Sin fecha";
+                const date = new Date(dateString);
+                return date.toLocaleString('es-ES', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            },
+
+            // Obtener el plan principal basado en la pestaña activa
+            getActivePlan: function() {
+                if (state.activeTab === 'pro') return 'pro';
+                if (state.activeTab.startsWith('proPrueba')) return 'proPrueba';
+                if (state.activeTab.startsWith('gratis')) return 'gratis';
+                return '';
+            },
+
+            // Obtener el array activo
+            getActiveList: function() {
+                return state.lists[state.activeTab] || [];
+            },
+
+            // Procesar el texto JSON
+            handleProcessData: function() {
+                const textarea = document.getElementById('json-input');
+                state.inputData = textarea.value;
+                state.error = null;
+                state.isCopied = false;
+
+                if (!state.inputData.trim()) {
+                    state.error = "Por favor, pega el JSON de los usuarios en el área de texto.";
+                    this.resetData();
+                    this.render();
+                    return;
+                }
+
+                try {
+                    const parsedData = JSON.parse(state.inputData);
+                    
+                    if (!Array.isArray(parsedData)) {
+                        throw new Error("El JSON debe ser una lista (array) de usuarios empezando por '[' y terminando en ']'.");
+                    }
+
+                    const now = new Date();
+                    const counts = { pro: 0, proPrueba: 0, proPruebaVencidos: 0, gratis: 0, gratisElegibles: 0, gratisVencidos: 0 };
+                    const arrays = { pro: [], proPruebaActivos: [], proPruebaVencidos: [], gratisElegibles: [], gratisVencidos: [] };
+
+                    parsedData.forEach(user => {
+                        if (user.plan === "Pro") {
+                            counts.pro++;
+                            arrays.pro.push(user);
+                        } else if (user.plan === "Pro (Prueba)") {
+                            counts.proPrueba++;
+                            if (user.trialEndsAt && new Date(user.trialEndsAt) < now) {
+                                counts.proPruebaVencidos++;
+                                arrays.proPruebaVencidos.push(user);
+                            } else {
+                                arrays.proPruebaActivos.push(user);
+                            }
+                        } else if (user.plan === "Gratis") {
+                            counts.gratis++;
+                            if (user.hasUsedTrial === false) {
+                                counts.gratisElegibles++;
+                                arrays.gratisElegibles.push(user);
+                            } else {
+                                counts.gratisVencidos++;
+                                arrays.gratisVencidos.push(user);
+                            }
+                        }
+                    });
+
+                    // Ordenamientos
+                    arrays.pro.sort((a, b) => new Date(b.createdAtDate) - new Date(a.createdAtDate));
+                    arrays.proPruebaActivos.sort((a, b) => new Date(a.trialEndsAt) - new Date(b.trialEndsAt)); // Vencen pronto primero
+                    arrays.proPruebaVencidos.sort((a, b) => new Date(b.trialEndsAt) - new Date(a.trialEndsAt));
+                    arrays.gratisElegibles.sort((a, b) => new Date(b.createdAtDate) - new Date(a.createdAtDate));
+                    arrays.gratisVencidos.sort((a, b) => new Date(b.createdAtDate) - new Date(a.createdAtDate));
+
+                    state.lists = arrays;
+                    state.stats = counts;
+                    state.activeTab = 'proPruebaVencidos';
+
+                } catch (err) {
+                    this.resetData();
+                    state.error = "Error al leer el JSON. Asegúrate de que el formato sea correcto. Detalle: " + err.message;
+                }
+
+                this.render();
+            },
+
+            // Limpiar todo
+            handleClear: function() {
+                document.getElementById('json-input').value = '';
+                state.inputData = '';
+                state.error = null;
+                state.isCopied = false;
+                state.activeTab = 'proPruebaVencidos';
+                this.resetData();
+                this.render();
+            },
+
+            resetData: function() {
+                state.lists = { pro: [], proPruebaActivos: [], proPruebaVencidos: [], gratisElegibles: [], gratisVencidos: [] };
+                state.stats = { pro: 0, proPrueba: 0, proPruebaVencidos: 0, gratis: 0, gratisElegibles: 0, gratisVencidos: 0 };
+            },
+
+            // Cambiar pestaña activa
+            setActiveTab: function(tab) {
+                state.activeTab = tab;
+                state.isCopied = false;
+                this.render();
+            },
+
+            // Copiar teléfonos
+            copyPhonesToClipboard: function() {
+                const listToCopy = this.getActiveList();
+                const phones = listToCopy.map(u => u.phone).join('\n');
+                
+                if(navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(phones).then(() => {
+                        this.showCopiedState();
+                    }).catch(err => this.fallbackCopyTextToClipboard(phones));
+                } else {
+                    this.fallbackCopyTextToClipboard(phones);
+                }
+            },
+
+            fallbackCopyTextToClipboard: function(text) {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.top = "0";
+                textArea.style.left = "0";
+                textArea.style.position = "fixed";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    this.showCopiedState();
+                } catch (err) {
+                    console.error('Fallback: Oops, unable to copy', err);
+                }
+                document.body.removeChild(textArea);
+            },
+
+            showCopiedState: function() {
+                state.isCopied = true;
+                this.render();
+                setTimeout(() => {
+                    state.isCopied = false;
+                    this.render();
+                }, 3000);
+            },
+
+            // Render principal que actualiza todo el DOM necesario
+            render: function() {
+                // Actualizar error
+                const errorContainer = document.getElementById('error-container');
+                if (state.error) {
+                    document.getElementById('error-message').textContent = state.error;
+                    errorContainer.classList.remove('hidden');
+                } else {
+                    errorContainer.classList.add('hidden');
+                }
+
+                // Actualizar números de estadísticas
+                document.getElementById('stat-pro-total').textContent = state.stats.pro;
+                document.getElementById('stat-proPrueba-total').textContent = state.stats.proPrueba;
+                document.getElementById('stat-proPrueba-activos').textContent = state.stats.proPrueba - state.stats.proPruebaVencidos;
+                document.getElementById('stat-proPrueba-vencidos').textContent = state.stats.proPruebaVencidos;
+                document.getElementById('stat-gratis-total').textContent = state.stats.gratis;
+                document.getElementById('stat-gratis-elegibles').textContent = state.stats.gratisElegibles;
+                document.getElementById('stat-gratis-vencidos').textContent = state.stats.gratisVencidos;
+
+                // Actualizar estilos de las tarjetas
+                const activePlan = this.getActivePlan();
+                const cardPro = document.getElementById('card-pro');
+                const cardProPrueba = document.getElementById('card-proPrueba');
+                const cardGratis = document.getElementById('card-gratis');
+
+                // Helper para resetear estilos
+                const resetCard = (el) => {
+                    el.classList.remove('border-indigo-500', 'ring-2', 'ring-indigo-100');
+                    el.classList.add('border-slate-200');
+                };
+                // Helper para activar estilos
+                const activateCard = (el) => {
+                    el.classList.remove('border-slate-200');
+                    el.classList.add('border-indigo-500', 'ring-2', 'ring-indigo-100');
+                };
+
+                resetCard(cardPro);
+                resetCard(cardProPrueba);
+                resetCard(cardGratis);
+
+                if (activePlan === 'pro') activateCard(cardPro);
+                if (activePlan === 'proPrueba') activateCard(cardProPrueba);
+                if (activePlan === 'gratis') activateCard(cardGratis);
+
+                // Renderizar Tabs Dinámicos
+                const tabsContainer = document.getElementById('dynamic-tabs');
+                let tabsHTML = '';
+
+                if (activePlan === 'pro') {
+                    tabsHTML = `
+                        <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all bg-white text-amber-600 shadow-sm cursor-default">
+                            <i data-lucide="crown" class="w-4 h-4"></i>
+                            Todos los Pro (${state.stats.pro})
+                        </button>
+                    `;
+                } else if (activePlan === 'proPrueba') {
+                    const activosCls = state.activeTab === 'proPruebaActivos' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50';
+                    const vencidosCls = state.activeTab === 'proPruebaVencidos' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50';
+                    tabsHTML = `
+                        <button onclick="app.setActiveTab('proPruebaActivos')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${activosCls}">
+                            <i data-lucide="clock" class="w-4 h-4"></i>
+                            Pruebas Activas (${state.stats.proPrueba - state.stats.proPruebaVencidos})
+                        </button>
+                        <button onclick="app.setActiveTab('proPruebaVencidos')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${vencidosCls}">
+                            <i data-lucide="calendar-x" class="w-4 h-4"></i>
+                            Pruebas Vencidas (${state.stats.proPruebaVencidos})
+                        </button>
+                    `;
+                } else if (activePlan === 'gratis') {
+                    const elegiblesCls = state.activeTab === 'gratisElegibles' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50';
+                    const vencidosCls = state.activeTab === 'gratisVencidos' ? 'bg-white text-rose-500 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50';
+                    tabsHTML = `
+                        <button onclick="app.setActiveTab('gratisElegibles')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${elegiblesCls}">
+                            <i data-lucide="gift" class="w-4 h-4"></i>
+                            Gratis Elegibles (${state.stats.gratisElegibles})
+                        </button>
+                        <button onclick="app.setActiveTab('gratisVencidos')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${vencidosCls}">
+                            <i data-lucide="clock" class="w-4 h-4"></i>
+                            Gratis Vencidos (${state.stats.gratisVencidos})
+                        </button>
+                    `;
+                }
+                tabsContainer.innerHTML = tabsHTML;
+
+                // Actualizar Botón de Copiar
+                const activeList = this.getActiveList();
+                const copyBtnContainer = document.getElementById('copy-btn-container');
+                const copyBtn = document.getElementById('btn-copy');
+
+                if (activeList.length > 0) {
+                    copyBtnContainer.classList.remove('hidden');
+                    if (state.isCopied) {
+                        copyBtn.className = 'text-sm flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl transition-colors border shadow-sm shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200';
+                        copyBtn.innerHTML = `<i data-lucide="check-circle-2" class="w-4 h-4"></i><span>¡Copiados!</span>`;
+                    } else {
+                        copyBtn.className = 'text-sm flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl transition-colors border shadow-sm shrink-0 bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:text-indigo-600';
+                        copyBtn.innerHTML = `<i data-lucide="copy" class="w-4 h-4"></i><span>Copiar</span>`;
+                    }
+                } else {
+                    copyBtnContainer.classList.add('hidden');
+                }
+
+                // Renderizar Tabla
+                const emptyState = document.getElementById('empty-state');
+                const resultsTable = document.getElementById('results-table');
+                const tableBody = document.getElementById('table-body');
+                const thDate = document.getElementById('th-date');
+
+                // Header text
+                thDate.textContent = state.activeTab === 'proPruebaVencidos' ? 'Venció el' : 
+                                     state.activeTab === 'proPruebaActivos' ? 'Vence el' : 'Creado el';
+
+                if (activeList.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    resultsTable.classList.add('hidden');
+                } else {
+                    emptyState.classList.add('hidden');
+                    resultsTable.classList.remove('hidden');
+                    
+                    // Construir filas
+                    let rowsHTML = '';
+                    activeList.forEach(user => {
+                        const dateCls = state.activeTab === 'proPruebaVencidos' ? 'text-rose-600' : 
+                                        state.activeTab === 'proPruebaActivos' ? 'text-emerald-600' : 'text-slate-600';
+                        const dateVal = this.formatDate(state.activeTab.startsWith('proPrueba') ? user.trialEndsAt : user.createdAtDate);
+                        
+                        rowsHTML += `
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="px-6 py-3 font-medium text-slate-800">${user.phone}</td>
+                                <td class="px-6 py-3 ${dateCls}">${dateVal}</td>
+                                <td class="px-6 py-3 text-slate-500 font-mono text-xs">${user.uid}</td>
+                            </tr>
+                        `;
+                    });
+                    tableBody.innerHTML = rowsHTML;
+                }
+
+                // Volver a renderizar los iconos de lucide porque modificamos el innerHTML
+                lucide.createIcons();
+            }
+        };
+
+        // Render inicial para dejar la interfaz lista
+        app.render();
+    </script>
+</body>
+</html>
