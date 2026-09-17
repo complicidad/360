@@ -55,7 +55,6 @@
           Zap, ExternalLink, Loader2, RefreshCw, Copy, Calendar, Search, 
           Edit2, AlertTriangle, ShieldCheck, Users, Globe, BarChart2
         } from 'lucide-react';
-
         
         // Obtener la fecha local correctamente formateada en YYYY-MM-DD
         const getLocalToday = () => {
@@ -111,6 +110,7 @@
         
         const calculateSubStatus = (endDateStr) => {
             const today = new Date();
+            today.setHours(0,0,0,0);
             const endDate = new Date(endDateStr + 'T00:00:00');
             const diffTime = endDate - today;
             const remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -476,11 +476,18 @@ function doGet(e) {
             if (tempScriptUrl) { loadDataFromSheets(tempScriptUrl); } else { showMessage('URL desconectada. Modo local activado.'); setCashFlow([]); }
           };
 
+          // ÚNICA FUENTE DE ORDENAMIENTO (Eficiencia O(N log N) en vez de hacerlo en cada hook)
+          const sortedCashFlow = useMemo(() => {
+              return [...cashFlow].sort((a, b) => new Date(a.date) - new Date(b.date));
+          }, [cashFlow]);
+
           const cashFlowWithBalance = useMemo(() => {
             let currentBalance = 0;
-            const sorted = [...cashFlow].sort((a, b) => new Date(a.date) - new Date(b.date));
-            return sorted.map(item => { currentBalance += (Number(item.income) || 0) - (Number(item.expense) || 0); return { ...item, balance: currentBalance }; }).reverse();
-          }, [cashFlow]);
+            return sortedCashFlow.map(item => { 
+                currentBalance += (Number(item.income) || 0) - (Number(item.expense) || 0); 
+                return { ...item, balance: currentBalance }; 
+            }).reverse();
+          }, [sortedCashFlow]);
 
           const displayedCashFlow = useMemo(() => {
              return cashFlowWithBalance.filter(item => {
@@ -493,7 +500,6 @@ function doGet(e) {
 
           const derivedSubscriptions = useMemo(() => {
             const subsMap = {};
-            const sortedCashFlow = [...cashFlow].sort((a, b) => new Date(a.date) - new Date(b.date));
             sortedCashFlow.forEach(entry => {
               if (entry.income > 0 && entry.client) {
                 const conceptStr = String(entry.concept || '');
@@ -518,7 +524,7 @@ function doGet(e) {
               const { remainingDays, status } = calculateSubStatus(sub.endDate);
               return { ...sub, remainingDays, status };
             }).sort((a, b) => a.remainingDays - b.remainingDays);
-          }, [cashFlow]);
+          }, [sortedCashFlow]);
 
           const subMetrics = useMemo(() => {
              let expired = 0; let warning = 0; let active = 0;
@@ -541,89 +547,94 @@ function doGet(e) {
               });
           }, [derivedSubscriptions, subSearch, subFilter]);
 
+          // CÁLCULO MEJORADO DE USUARIOS Y MÉTRICAS (O(N) de eficiencia)
           const monthlyChartData = useMemo(() => {
             const monthsNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
             const targetYear = parseInt(filterMonth.split('-')[0], 10);
+            
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const todayTime = today.getTime();
 
             const userPeriods = {};
-            const sortedCashFlow = [...cashFlow].sort((a, b) => new Date(a.date) - new Date(b.date));
-            
+            const firstSeen = {};
+
+            const monthlySaasRev = Array(12).fill(0);
+            const monthlyNet = Array(12).fill(0);
+
+            // 1. Extraer periodos en una sola iteración lineal
             sortedCashFlow.forEach(entry => {
-                if (entry.income > 0 && entry.client) {
+                const inc = Number(entry.income) || 0;
+                const exp = Number(entry.expense) || 0;
+                const isSaas = String(entry.category || '').includes('SaaS') || (!entry.category && entry.voucher);
+                
+                if (entry.date) {
+                    const entryDate = new Date(entry.date + 'T00:00:00');
+                    if (entryDate.getFullYear() === targetYear) {
+                        const eMonth = entryDate.getMonth();
+                        monthlyNet[eMonth] += (inc - exp);
+                        if (inc > 0 && isSaas) {
+                            monthlySaasRev[eMonth] += inc;
+                        }
+                    }
+                }
+
+                if (inc > 0 && entry.client) {
                     const match = String(entry.concept || '').match(/x\s*(\d+)\s*mes/i);
                     const months = match ? parseInt(match[1]) : 0;
-                    const isSaas = String(entry.category || '').includes('SaaS') || (!entry.category && entry.voucher);
                     
                     if (months > 0 && isSaas) {
                         const client = String(entry.client).trim().toLowerCase();
-                        const startDate = entry.date;
-                        const endDate = addMonthsToDate(startDate, months);
+                        const sDateStr = entry.subscriptionDate || entry.date;
+                        if (!sDateStr) return;
+
+                        const startDateObj = new Date(sDateStr + 'T00:00:00');
+                        const start = startDateObj.getTime();
                         
+                        const endDateObj = new Date(startDateObj);
+                        endDateObj.setMonth(endDateObj.getMonth() + months);
+                        const end = endDateObj.getTime();
+
+                        if (!firstSeen[client] || start < firstSeen[client]) {
+                            firstSeen[client] = start;
+                        }
+
                         if (!userPeriods[client]) userPeriods[client] = [];
                         const periods = userPeriods[client];
-                        
+
                         if (periods.length > 0) {
                             let lastP = periods[periods.length - 1];
-                            if (new Date(startDate) <= new Date(lastP.end)) {
-                                const baseDate = new Date(lastP.end) > new Date(startDate) ? lastP.end : startDate;
-                                lastP.end = addMonthsToDate(baseDate, months);
+                            if (start <= lastP.end) {
+                                const baseDate = new Date(Math.max(lastP.end, start));
+                                baseDate.setMonth(baseDate.getMonth() + months);
+                                lastP.end = baseDate.getTime();
                             } else {
-                                periods.push({ start: startDate, end: endDate });
+                                periods.push({ start, end });
                             }
                         } else {
-                            periods.push({ start: startDate, end: endDate });
+                            periods.push({ start, end });
                         }
                     }
                 }
             });
 
-            const isActiveEOM = (client, year, month) => {
-                const mEnd = new Date(year, month + 1, 0); 
-                const periods = userPeriods[client] || [];
-                return periods.some(p => {
-                    const s = new Date(p.start + 'T00:00:00');
-                    const e = new Date(p.end + 'T00:00:00');
-                    return s <= mEnd && e >= mEnd; 
-                });
-            };
-
+            // 2. Determinar usuarios activos al final de cada mes (EOM)
             const activeSets = {};
-            for(let m = -1; m < 12; m++) {
+            for (let m = -1; m < 12; m++) {
                 let y = targetYear; let mo = m;
                 if (m === -1) { y = targetYear - 1; mo = 11; }
+                const mEnd = new Date(y, mo + 1, 0, 23, 59, 59).getTime();
+                
                 activeSets[m] = new Set();
                 Object.keys(userPeriods).forEach(client => {
-                    if (isActiveEOM(client, y, mo)) activeSets[m].add(client);
+                    const isActive = userPeriods[client].some(p => p.start <= mEnd && p.end >= mEnd);
+                    if (isActive) activeSets[m].add(client);
                 });
             }
 
-            const firstSeen = {};
-            Object.keys(userPeriods).forEach(client => {
-                firstSeen[client] = new Date(userPeriods[client][0].start + 'T00:00:00');
-            });
-
+            // 3. Procesar resultados mes a mes
             const data = [];
-
-            // AHORA SIEMPRE SE RENDERIZAN LOS 12 MESES
             for (let i = 0; i < 12; i++) {
-                let monthSaasRev = 0;
-                let monthNet = 0;
-
-                const monthItems = cashFlow.filter(item => {
-                    if(!item.date) return false;
-                    const d = new Date(item.date + 'T00:00:00');
-                    return d.getFullYear() === targetYear && d.getMonth() === i;
-                });
-
-                monthItems.forEach(item => {
-                    monthNet += (Number(item.income) || 0) - (Number(item.expense) || 0);
-                    const isSaasCategory = String(item.category || '').includes('SaaS');
-                    const isLegacySaas = !item.category;
-                    if (Number(item.income) > 0 && (isSaasCategory || isLegacySaas)) {
-                        monthSaasRev += Number(item.income);
-                    }
-                });
-
                 const prevActive = activeSets[i-1];
                 const currActive = activeSets[i];
 
@@ -631,20 +642,34 @@ function doGet(e) {
                 let recurringUsers = 0;
                 let reactivatedUsers = 0;
                 let churnedUsers = 0;
+                let expiringUsers = 0; 
 
-                prevActive.forEach(u => {
-                    if (!currActive.has(u)) churnedUsers++;
-                });
+                const currentMonthStart = new Date(targetYear, i, 1).getTime();
+                const currentMonthEnd = new Date(targetYear, i + 1, 0, 23, 59, 59).getTime();
 
                 currActive.forEach(u => {
                     if (prevActive.has(u)) {
                         recurringUsers++; 
                     } else {
-                        const isNew = firstSeen[u].getFullYear() === targetYear && firstSeen[u].getMonth() === i;
-                        if (isNew) {
+                        const firstTime = firstSeen[u];
+                        if (firstTime >= currentMonthStart && firstTime <= currentMonthEnd) {
                             newUsers++;
                         } else {
                             reactivatedUsers++; 
+                        }
+                    }
+                });
+
+                prevActive.forEach(u => {
+                    if (!currActive.has(u)) {
+                        const maxEnd = Math.max(...userPeriods[u].map(p => p.end));
+                        
+                        // LÓGICA CORREGIDA: Si el mes analizado ya pasó, o la fecha de corte ya pasó, es Baja Real.
+                        if (currentMonthEnd < todayTime || maxEnd < todayTime) {
+                            churnedUsers++;
+                        } else {
+                            // Solo es "Por Vencer" si la pérdida ocurre en este mes vigente o meses futuros
+                            expiringUsers++;
                         }
                     }
                 });
@@ -655,20 +680,18 @@ function doGet(e) {
                 data.push({
                     month: monthsNames[i],
                     paidUsers: currActive.size,
-                    newUsers, recurringUsers, reactivatedUsers, churnedUsers,
-                    saasRevenue: monthSaasRev,
+                    newUsers, recurringUsers, reactivatedUsers, churnedUsers, expiringUsers,
+                    saasRevenue: monthlySaasRev[i],
                     retentionRate: parseFloat(retentionRate.toFixed(1)),
-                    netProfit: monthNet
+                    netProfit: monthlyNet[i]
                 });
             }
             return data;
-          }, [cashFlow, filterMonth]);
+          }, [sortedCashFlow, filterMonth]);
 
-          // GRÁFICO: Clientes Nuevos por Semana (52 Semanas Completas)
           const weeklyChartData = useMemo(() => {
             const targetYear = parseInt(filterMonth.split('-')[0], 10);
             const firstSeen = {};
-            const sortedCashFlow = [...cashFlow].sort((a, b) => new Date(a.date) - new Date(b.date));
             
             sortedCashFlow.forEach(entry => {
                 if (entry.income > 0 && entry.client) {
@@ -707,9 +730,8 @@ function doGet(e) {
                 }
             });
 
-            // AHORA SIEMPRE DEVUELVE LAS 52 SEMANAS
             return weeksData;
-          }, [cashFlow, filterMonth]);
+          }, [sortedCashFlow, filterMonth]);
 
           const metrics = useMemo(() => {
             const [targetYearStr, targetMonthStr] = filterMonth.split('-');
@@ -814,7 +836,6 @@ function doGet(e) {
               
               <div className="animate-fade-in max-w-7xl mx-auto space-y-6">
                 
-                {}
                 {activeSubTab === 'dashboard' && (
                   <div className="space-y-6">
                     <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -957,6 +978,7 @@ function doGet(e) {
                          </div>
                       </div>
 
+                      {}
                       {/* GRÁFICO 2: Composición de Usuarios */}
                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow w-full">
                          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><Users className="text-blue-600" size={20} /> Composición de Usuarios ({filterMonth.split('-')[0]})</h3>
@@ -969,7 +991,8 @@ function doGet(e) {
                                          { label: 'Nuevos', data: monthlyChartData.map(d => d.newUsers), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.3, borderWidth: 2, fill: true },
                                          { label: 'Recurrentes', data: monthlyChartData.map(d => d.recurringUsers), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.3, borderWidth: 2, fill: true },
                                          { label: 'Reactivados', data: monthlyChartData.map(d => d.reactivatedUsers), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', tension: 0.3, borderWidth: 2, fill: true, borderDash: [5, 5] },
-                                         { label: 'Bajas (Churn)', data: monthlyChartData.map(d => d.churnedUsers), borderColor: '#f43f5e', backgroundColor: 'rgba(244, 63, 94, 0.1)', tension: 0.3, borderWidth: 2, fill: true }
+                                         { label: 'Bajas (Churn)', data: monthlyChartData.map(d => d.churnedUsers), borderColor: '#f43f5e', backgroundColor: 'rgba(244, 63, 94, 0.1)', tension: 0.3, borderWidth: 2, fill: true },
+                                         { label: 'Por Vencer (Vigentes)', data: monthlyChartData.map(d => d.expiringUsers), borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', tension: 0.3, borderWidth: 2, fill: true, borderDash: [5, 5] }
                                      ]
                                  }} 
                                  options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }, interaction: { mode: 'index', intersect: false } }} 
