@@ -9,7 +9,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Import Map para resolver dependencias de React y JSX Runtime correctamente -->
+    <!-- Import Map para resolver dependencias de React y JSX Runtime -->
     <script type="importmap">
     {
         "imports": {
@@ -40,6 +40,16 @@
         
         .hide-scroll::-webkit-scrollbar { display: none; }
         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Estilo para las celdas del Heatmap */
+        .heatmap-cell {
+            transition: all 0.2s ease;
+        }
+        .heatmap-cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans antialiased overflow-hidden">
@@ -53,34 +63,14 @@
           LayoutDashboard, Wallet, Settings, Database, Menu, Plus, 
           TrendingUp, TrendingDown, AlertCircle, X, CheckCircle2, Clock, 
           Zap, ExternalLink, Loader2, RefreshCw, Copy, Calendar, Search, 
-          Edit2, AlertTriangle, ShieldCheck, Users, Globe, BarChart2
+          Edit2, AlertTriangle, ShieldCheck, Users, Globe, BarChart2,
+          PieChart, Target, Activity, Layers
         } from 'lucide-react';
-        
-        // Obtener la fecha local correctamente formateada en YYYY-MM-DD
+
         const getLocalToday = () => {
              const d = new Date();
              d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
              return d.toISOString().split('T')[0];
-        };
-
-        const parseSafeDate = (val) => {
-          if (!val) return null;
-          if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
-          if (typeof val === 'number') {
-            const d = new Date(Math.round((val - 25569) * 86400 * 1000));
-            return isNaN(d.getTime()) ? null : d;
-          }
-          if (typeof val === 'string') {
-            let str = val.replace(' ', 'T');
-            let d = new Date(str);
-            if (!isNaN(d.getTime())) return d;
-            const parts = val.split(/[\/\-\s]/);
-            if (parts.length >= 3 && parts[2].length === 4) {
-              d = new Date(`${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}T00:00:00`);
-              if (!isNaN(d.getTime())) return d;
-            }
-          }
-          return null;
         };
 
         const ChartComponent = ({ type, data, options }) => {
@@ -174,7 +164,6 @@ function doGet(e) {
 }`;
 
         const ModalCashFlow = ({ onClose, onSave, isSaving, initialData }) => {
-          // Diferenciar entre una Edición real (tiene ID) y una Renovación Rápida (tiene datos pero NO ID)
           const isEdit = !!(initialData && initialData.id); 
           const isTemplate = !!(initialData && !initialData.id);
 
@@ -201,7 +190,6 @@ function doGet(e) {
           const [months, setMonths] = useState(initMonths);
           
           const [date, setDate] = useState(isEdit ? initialData.date : getLocalToday());
-          // Para renovación rápida, priorizar la fecha de suscripción enviada en el initialData
           const [subscriptionDate, setSubscriptionDate] = useState(initialData?.subscriptionDate || (isEdit ? (initialData.subscriptionDate || initialData.date) : getLocalToday()));
           const [voucherType, setVoucherType] = useState(isEdit ? (initialData.voucher || 'Pendiente / Sin Comprobante') : 'Pendiente / Sin Comprobante');
           const [promoBienvenida, setPromoBienvenida] = useState(false);
@@ -249,7 +237,7 @@ function doGet(e) {
             if (isSaving) return;
             const formData = new FormData(e.target);
             onSave({
-              id: isEdit ? initialData.id : null, // Si es null, el padre generará un ID nuevo
+              id: isEdit ? initialData.id : null, 
               date: formData.get('date') || date, 
               subscriptionDate: (type === 'ingreso' && isSaasCategory) ? subscriptionDate : (formData.get('date') || date),
               client: formData.get('client') || '', concept: manualConcept, category: category,
@@ -345,7 +333,7 @@ function doGet(e) {
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Comprobante</label>
                       <select name="voucher" value={voucherType} onChange={(e) => setVoucherType(e.target.value)} disabled={isSaving} className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100">
-                        <option>Pendiente / Sin Comprobante</option><option>Boleta</option><option>Factura</option><option>RxH</option>
+                        <option>Pendiente / Sin Comprobante</option><option>Boleta</option><option>Factura</option>
                       </select>
                     </div>
                   </div>
@@ -387,6 +375,19 @@ function doGet(e) {
             </div>
           );
         };
+
+        const MetricCard = ({ title, value, subtext, icon: Icon, color, alert }) => (
+            <div className={`bg-white p-5 rounded-2xl shadow-sm border ${alert ? 'border-rose-400 ring-2 ring-rose-400/20' : 'border-slate-100'} flex flex-col justify-center hover:shadow-md transition-all relative overflow-hidden h-full`}>
+                <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-xl bg-${color}-100 text-${color}-600 shrink-0`}><Icon size={24} /></div>
+                    <div>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider leading-tight mb-1">{title}</p>
+                        <p className={`text-2xl font-black leading-none ${alert ? 'text-rose-600' : 'text-slate-800'}`}>{value}</p>
+                        <p className="text-[10px] font-medium text-slate-500 mt-1.5 leading-tight">{subtext}</p>
+                    </div>
+                </div>
+            </div>
+        );
 
         const FinanceModule = ({ activeSubTab, setNotification, cashFlow, setCashFlow }) => {
           const [showCashFlowModal, setShowCashFlowModal] = useState(false);
@@ -476,17 +477,13 @@ function doGet(e) {
             if (tempScriptUrl) { loadDataFromSheets(tempScriptUrl); } else { showMessage('URL desconectada. Modo local activado.'); setCashFlow([]); }
           };
 
-          // ÚNICA FUENTE DE ORDENAMIENTO (Eficiencia O(N log N) en vez de hacerlo en cada hook)
           const sortedCashFlow = useMemo(() => {
               return [...cashFlow].sort((a, b) => new Date(a.date) - new Date(b.date));
           }, [cashFlow]);
 
           const cashFlowWithBalance = useMemo(() => {
             let currentBalance = 0;
-            return sortedCashFlow.map(item => { 
-                currentBalance += (Number(item.income) || 0) - (Number(item.expense) || 0); 
-                return { ...item, balance: currentBalance }; 
-            }).reverse();
+            return sortedCashFlow.map(item => { currentBalance += (Number(item.income) || 0) - (Number(item.expense) || 0); return { ...item, balance: currentBalance }; }).reverse();
           }, [sortedCashFlow]);
 
           const displayedCashFlow = useMemo(() => {
@@ -547,7 +544,183 @@ function doGet(e) {
               });
           }, [derivedSubscriptions, subSearch, subFilter]);
 
-          // CÁLCULO MEJORADO DE USUARIOS Y MÉTRICAS (O(N) de eficiencia)
+          const expenseDonutData = useMemo(() => {
+            const [targetYearStr, targetMonthStr] = filterMonth.split('-');
+            const targetYear = parseInt(targetYearStr, 10);
+            const targetMonth = parseInt(targetMonthStr, 10) - 1;
+            
+            const categories = {};
+            sortedCashFlow.forEach(item => {
+                const d = item.date ? new Date(item.date + 'T00:00:00') : null;
+                if (d && d.getFullYear() === targetYear && d.getMonth() === targetMonth) {
+                    const exp = Number(item.expense) || 0;
+                    if (exp > 0) {
+                        const cat = item.category || 'Egresos Generales';
+                        categories[cat] = (categories[cat] || 0) + exp;
+                    }
+                }
+            });
+            return {
+                labels: Object.keys(categories),
+                data: Object.values(categories),
+                total: Object.values(categories).reduce((a,b)=>a+b, 0)
+            };
+          }, [sortedCashFlow, filterMonth]);
+
+          const saasMetrics = useMemo(() => {
+            const [targetYearStr, targetMonthStr] = filterMonth.split('-');
+            const targetYear = parseInt(targetYearStr, 10);
+            const targetMonth = parseInt(targetMonthStr, 10) - 1;
+            
+            const clientPeriods = {};
+            const firstSeenSaas = {};
+            
+            sortedCashFlow.forEach(entry => {
+                const inc = Number(entry.income) || 0;
+                const isSaas = String(entry.category || '').includes('SaaS') || (!entry.category && entry.voucher);
+                if (inc > 0 && entry.client && isSaas) {
+                    const match = String(entry.concept || '').match(/x\s*(\d+)\s*mes/i);
+                    const months = match ? parseInt(match[1]) : 1;
+                    const mrr = inc / months;
+                    
+                    const startD = entry.subscriptionDate || entry.date;
+                    if(!startD) return;
+                    const startMs = new Date(startD + 'T00:00:00').getTime();
+                    
+                    const endD = new Date(startMs);
+                    endD.setMonth(endD.getMonth() + months);
+                    const endMs = endD.getTime();
+                    
+                    const client = String(entry.client).trim().toLowerCase();
+                    if(!clientPeriods[client]) clientPeriods[client] = [];
+                    clientPeriods[client].push({ startMs, endMs, mrr });
+
+                    if (!firstSeenSaas[client] || startMs < firstSeenSaas[client]) {
+                        firstSeenSaas[client] = startMs;
+                    }
+                }
+            });
+
+            const getMrrAtDate = (client, dateMs) => {
+                if (!clientPeriods[client]) return 0;
+                return clientPeriods[client].reduce((sum, p) => {
+                    if (p.startMs <= dateMs && p.endMs > dateMs) return sum + p.mrr;
+                    return sum;
+                }, 0);
+            };
+
+            const monthsNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            const mrrChart = [];
+            let currentMonthMRR = 0, currentMonthARPU = 0, currentMonthChurnRate = 0, currentMonthLTV = 0;
+            
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const todayMs = today.getTime(); 
+
+            for (let i = 0; i < 12; i++) {
+                const prevEOM = new Date(targetYear, i, 0, 23, 59, 59).getTime(); 
+                const currEOM = new Date(targetYear, i + 1, 0, 23, 59, 59).getTime(); 
+                
+                let totalMrr = 0, newMrr = 0, reactivatedMrr = 0, expMrr = 0, conMrr = 0, churnMrr = 0;
+                let activeUsers = 0, prevActive = 0, churnedUsers = 0;
+
+                Object.keys(clientPeriods).forEach(client => {
+                    const pMrr = getMrrAtDate(client, prevEOM);
+                    let cMrr = getMrrAtDate(client, currEOM);
+                    
+                    const maxEnd = Math.max(...clientPeriods[client].map(p => p.endMs));
+                    
+                    if (pMrr > 0 && cMrr === 0) {
+                        if (currEOM >= todayMs && maxEnd >= todayMs) {
+                            cMrr = pMrr; 
+                        }
+                    }
+                    
+                    if (pMrr > 0) prevActive++;
+                    if (cMrr > 0) {
+                        activeUsers++;
+                        totalMrr += cMrr;
+                    }
+                    
+                    if (pMrr === 0 && cMrr > 0) {
+                        const firstTime = firstSeenSaas[client];
+                        if (firstTime > prevEOM && firstTime <= currEOM) {
+                            newMrr += cMrr;
+                        } else {
+                            reactivatedMrr += cMrr; 
+                        }
+                    }
+                    else if (pMrr > 0 && cMrr === 0) { 
+                        churnMrr -= pMrr; 
+                        churnedUsers++; 
+                    } 
+                    else if (cMrr > pMrr) { expMrr += (cMrr - pMrr); }
+                    else if (cMrr < pMrr && cMrr > 0) { conMrr -= (pMrr - cMrr); } 
+                });
+                
+                const churnRate = prevActive > 0 ? (churnedUsers / prevActive) * 100 : 0;
+                const arpu = activeUsers > 0 ? totalMrr / activeUsers : 0;
+                const ltv = churnRate > 0 ? (arpu / (churnRate/100)) : (arpu * 12); 
+
+                mrrChart.push({
+                    month: monthsNames[i],
+                    totalMrr, newMrr, reactivatedMrr, expMrr, conMrr, churnMrr,
+                    activeUsers, churnRate, arpu, ltv
+                });
+
+                if (i === targetMonth) {
+                    currentMonthMRR = totalMrr;
+                    currentMonthARPU = arpu;
+                    currentMonthChurnRate = churnRate;
+                    currentMonthLTV = ltv;
+                }
+            }
+
+            const userFirstMonth = {}; 
+            Object.keys(clientPeriods).forEach(client => {
+                 const firstPeriodMs = Math.min(...clientPeriods[client].map(p => p.startMs));
+                 const d = new Date(firstPeriodMs);
+                 const yyyyMm = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                 userFirstMonth[client] = yyyyMm;
+            });
+
+            const cohortGroups = {}; 
+            Object.keys(userFirstMonth).forEach(client => {
+                const ym = userFirstMonth[client];
+                if (!cohortGroups[ym]) cohortGroups[ym] = { total: 0, users: [] };
+                cohortGroups[ym].total++;
+                cohortGroups[ym].users.push(client);
+            });
+
+            const cohortsList = Object.keys(cohortGroups).sort().slice(-6); 
+            const cohortTable = cohortsList.map(ym => {
+                const [y, m] = ym.split('-');
+                const cYear = parseInt(y, 10);
+                const cMonth = parseInt(m, 10) - 1;
+                
+                const retentions = [];
+                for (let i = 0; i <= 6; i++) { 
+                    const checkDate = new Date(cYear, cMonth + i + 1, 0, 23, 59, 59);
+                    const checkMs = checkDate.getTime();
+                    const todayEOM = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).getTime();
+                    
+                    if (checkMs > todayEOM && i > 0) {
+                        retentions.push(null); 
+                    } else {
+                        let active = 0;
+                        cohortGroups[ym].users.forEach(client => {
+                            if (getMrrAtDate(client, checkMs) > 0) active++;
+                        });
+                        retentions.push((active / cohortGroups[ym].total) * 100);
+                    }
+                }
+                return { label: `${monthsNames[cMonth]} ${cYear}`, total: cohortGroups[ym].total, retentions };
+            }).reverse();
+
+            return { mrrChart, currentMonthMRR, currentMonthARPU, currentMonthChurnRate, currentMonthLTV, cohortTable };
+          }, [sortedCashFlow, filterMonth]);
+
+
           const monthlyChartData = useMemo(() => {
             const monthsNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
             const targetYear = parseInt(filterMonth.split('-')[0], 10);
@@ -562,7 +735,6 @@ function doGet(e) {
             const monthlySaasRev = Array(12).fill(0);
             const monthlyNet = Array(12).fill(0);
 
-            // 1. Extraer periodos en una sola iteración lineal
             sortedCashFlow.forEach(entry => {
                 const inc = Number(entry.income) || 0;
                 const exp = Number(entry.expense) || 0;
@@ -618,7 +790,6 @@ function doGet(e) {
                 }
             });
 
-            // 2. Determinar usuarios activos al final de cada mes (EOM)
             const activeSets = {};
             for (let m = -1; m < 12; m++) {
                 let y = targetYear; let mo = m;
@@ -632,7 +803,6 @@ function doGet(e) {
                 });
             }
 
-            // 3. Procesar resultados mes a mes
             const data = [];
             for (let i = 0; i < 12; i++) {
                 const prevActive = activeSets[i-1];
@@ -664,11 +834,9 @@ function doGet(e) {
                     if (!currActive.has(u)) {
                         const maxEnd = Math.max(...userPeriods[u].map(p => p.end));
                         
-                        // LÓGICA CORREGIDA: Si el mes analizado ya pasó, o la fecha de corte ya pasó, es Baja Real.
                         if (currentMonthEnd < todayTime || maxEnd < todayTime) {
                             churnedUsers++;
                         } else {
-                            // Solo es "Por Vencer" si la pérdida ocurre en este mes vigente o meses futuros
                             expiringUsers++;
                         }
                     }
@@ -744,8 +912,14 @@ function doGet(e) {
             let monthlyIncome = 0; let monthlyExpense = 0;
             let monthlySaaSIncome = 0; let monthlyOtherIncome = 0;
             let monthlyCommissionExpense = 0; let monthlyOtherExpense = 0;
+            
+            // Nuevas variables estratégicas
+            let monthlyMarketingExpense = 0;
+            let cashFlowMonthlyPlans = 0;
+            let cashFlowAnnualPlans = 0;
+            let cashFlowOtherPlans = 0;
 
-            cashFlow.forEach(item => {
+            sortedCashFlow.forEach(item => {
               const inc = Number(item.income) || 0; const exp = Number(item.expense) || 0;
               const categoryStr = String(item.category || ''); const voucherStr = String(item.voucher || '');
               globalIncome += inc; globalExpense += exp;
@@ -755,13 +929,27 @@ function doGet(e) {
                 const itemMonth = d.getMonth(); const itemYear = d.getFullYear();
                 if (itemMonth === targetMonth && itemYear === targetYear) {
                   monthlyIncome += inc; monthlyExpense += exp;
-                  if (inc > 0) {
-                    if (categoryStr.includes('SaaS') || (!categoryStr && voucherStr !== 'Pendiente')) monthlySaaSIncome += inc;
-                    else monthlyOtherIncome += inc;
-                  }
+                  
                   if (exp > 0) {
                      if (categoryStr.toLowerCase().includes('comision') || categoryStr.toLowerCase().includes('comisión')) monthlyCommissionExpense += exp;
                      else monthlyOtherExpense += exp;
+                     
+                     if (categoryStr === 'Marketing y Publicidad') monthlyMarketingExpense += exp;
+                  }
+
+                  if (inc > 0) {
+                    const isSaasItem = categoryStr.includes('SaaS') || (!categoryStr && voucherStr !== 'Pendiente');
+                    if (isSaasItem) {
+                        monthlySaaSIncome += inc;
+                        const match = String(item.concept || '').match(/x\s*(\d+)\s*mes/i);
+                        const m = match ? parseInt(match[1], 10) : 1;
+                        if (m >= 12) cashFlowAnnualPlans += inc;
+                        else if (m === 1) cashFlowMonthlyPlans += inc;
+                        else cashFlowOtherPlans += inc;
+                    }
+                    else {
+                        monthlyOtherIncome += inc;
+                    }
                   }
                 }
                 if (itemMonth === pMonth && itemYear === pYear) {
@@ -772,16 +960,17 @@ function doGet(e) {
 
             return { 
               globalNetProfit: globalIncome - globalExpense, prevMonthNetProfit: prevMonthIncome - prevMonthExpense,
-              monthlyIncome, monthlySaaSIncome, monthlyOtherIncome, monthlyExpense, monthlyCommissionExpense, monthlyOtherExpense, netProfit: monthlyIncome - monthlyExpense
+              monthlyIncome, monthlySaaSIncome, monthlyOtherIncome, monthlyExpense, monthlyCommissionExpense, monthlyOtherExpense, netProfit: monthlyIncome - monthlyExpense,
+              monthlyMarketingExpense, cashFlowMonthlyPlans, cashFlowAnnualPlans, cashFlowOtherPlans
             };
-          }, [cashFlow, filterMonth]);
+          }, [sortedCashFlow, filterMonth]);
 
           const filteredDetails = useMemo(() => {
             if (!activeFilter) return [];
             const [targetYearStr, targetMonthStr] = filterMonth.split('-');
             const targetYear = parseInt(targetYearStr, 10); const targetMonth = parseInt(targetMonthStr, 10) - 1;
 
-            return cashFlow.filter(item => {
+            return sortedCashFlow.filter(item => {
                 const d = item.date ? new Date(item.date + 'T00:00:00') : null;
                 if (!d || d.getMonth() !== targetMonth || d.getFullYear() !== targetYear) return false;
                 const inc = Number(item.income) || 0; const exp = Number(item.expense) || 0;
@@ -793,12 +982,11 @@ function doGet(e) {
                 if (activeFilter === 'OTHER_EXPENSE') return exp > 0 && !(categoryStr.toLowerCase().includes('comision') || categoryStr.toLowerCase().includes('comisión'));
                 return false;
             }).sort((a,b) => new Date(b.date) - new Date(a.date));
-          }, [cashFlow, filterMonth, activeFilter]);
+          }, [sortedCashFlow, filterMonth, activeFilter]);
 
           const handleSaveCashFlow = async (data) => {
             setIsSaving(true);
             const isUpdate = !!data.id;
-            // Generar un ID único combinando Date.now y random para evitar colisiones en guardados rápidos
             const cashEntryId = isUpdate ? data.id : Date.now() + Math.floor(Math.random() * 10000);
             const montoCashFlow = data.income > 0 ? data.income : -data.expense;
 
@@ -840,8 +1028,8 @@ function doGet(e) {
                   <div className="space-y-6">
                     <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                       <div>
-                        <h2 className="text-2xl font-bold text-slate-800">Resumen General</h2>
-                        <p className="text-slate-500">Analiza el rendimiento de tu negocio.</p>
+                        <h2 className="text-2xl font-bold text-slate-800">Dashboard Financiero</h2>
+                        <p className="text-slate-500">Liquidez, utilidades y salud operativa de tu negocio.</p>
                         {!scriptUrl && (
                           <div className="mt-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-sm flex items-start gap-2">
                               <AlertCircle size={16} className="mt-0.5 shrink-0" />
@@ -891,20 +1079,12 @@ function doGet(e) {
                         <p className="text-xl font-bold text-slate-800">S/ {metrics.monthlyOtherIncome.toFixed(2)}</p>
                       </div>
                       <div onClick={() => setActiveFilter(prev => prev === 'COMMISSION_EXPENSE' ? null : 'COMMISSION_EXPENSE')} className={`bg-white p-5 rounded-2xl shadow-sm border cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md ${activeFilter === 'COMMISSION_EXPENSE' ? 'border-rose-400 ring-2 ring-rose-400/20' : 'border-slate-100'}`}>
-                        <div className="flex items-center justify-between mb-1"><div className="flex items-center gap-2 text-slate-500"><TrendingDown size={16} className="text-rose-400"/> <span className="text-xs font-medium">Egresos por Comisión</span></div><Search size={14} className="text-slate-300" /></div>
+                        <div className="flex items-center justify-between mb-1"><div className="flex items-center gap-2 text-slate-500"><TrendingDown size={16} className="text-rose-400"/> <span className="text-xs font-medium">Egresos Comisiones</span></div><Search size={14} className="text-slate-300" /></div>
                         <p className="text-xl font-bold text-slate-800">S/ {metrics.monthlyCommissionExpense.toFixed(2)}</p>
                       </div>
                       <div onClick={() => setActiveFilter(prev => prev === 'OTHER_EXPENSE' ? null : 'OTHER_EXPENSE')} className={`bg-white p-5 rounded-2xl shadow-sm border cursor-pointer transition-all hover:-translate-y-1 hover:shadow-md ${activeFilter === 'OTHER_EXPENSE' ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-100'}`}>
                         <div className="flex items-center justify-between mb-1"><div className="flex items-center gap-2 text-slate-500"><TrendingDown size={16} className="text-rose-500"/> <span className="text-xs font-medium">Otros Egresos</span></div><Search size={14} className="text-slate-300" /></div>
                         <p className="text-xl font-bold text-slate-800">S/ {metrics.monthlyOtherExpense.toFixed(2)}</p>
-                      </div>
-
-                      <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition-shadow lg:col-span-4">
-                        <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><Users size={24} /></div>
-                        <div>
-                          <p className="text-sm font-medium text-slate-500">Suscripciones Activas vs Corte</p>
-                          <p className="text-2xl font-bold text-slate-800">{subMetrics.active + subMetrics.warning} <span className="text-slate-400 text-base font-normal">/ {subMetrics.expired}</span></p>
-                        </div>
                       </div>
                     </div>
 
@@ -948,38 +1128,173 @@ function doGet(e) {
                       </div>
                     )}
 
-                    {/* Gráficos Full-Width (Flex Columna) */}
+                    {/* DECISIONES SOBRE EL FLUJO DE EFECTIVO */}
+                    {(() => {
+                        const targetMonth = parseInt(filterMonth.split('-')[1], 10) - 1;
+                        const currentNewUsers = monthlyChartData[targetMonth]?.newUsers || 0;
+                        const cac = currentNewUsers > 0 ? (metrics.monthlyMarketingExpense / currentNewUsers) : 0;
+                        const payback = saasMetrics.currentMonthARPU > 0 ? (cac / saasMetrics.currentMonthARPU) : 0;
+                        const profitMargin = metrics.monthlyIncome > 0 ? (metrics.netProfit / metrics.monthlyIncome) * 100 : 0;
+                        const burnRate = metrics.monthlyExpense > metrics.monthlyIncome ? (metrics.monthlyExpense - metrics.monthlyIncome) : 0;
+                        const runway = burnRate > 0 ? (metrics.globalNetProfit / burnRate) : Infinity;
+
+                        return (
+                            <div className="mt-8 animate-fade-in-up">
+                                <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                    <Zap className="text-amber-500 fill-amber-500" /> Decisiones sobre el Flujo de Efectivo
+                                </h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                    <MetricCard 
+                                        title="CAC (Costo Adquisición)" 
+                                        value={`S/ ${cac.toFixed(2)}`} 
+                                        subtext={`Inversión Mkt: S/ ${metrics.monthlyMarketingExpense.toFixed(2)} / ${currentNewUsers} Nuevos`} 
+                                        icon={Target} 
+                                        color="rose" 
+                                    />
+                                    <MetricCard 
+                                        title="Payback Period" 
+                                        value={payback > 0 ? `${payback.toFixed(1)} meses` : 'Inmediato'} 
+                                        subtext="Tiempo en recuperar el costo de adquisición." 
+                                        icon={Clock} 
+                                        color="amber" 
+                                    />
+                                    <MetricCard 
+                                        title="Margen de Beneficio" 
+                                        value={`${profitMargin.toFixed(1)}%`} 
+                                        subtext="Centavos de ganancia libre por cada Sol ingresado." 
+                                        icon={TrendingUp} 
+                                        color={profitMargin > 0 ? "emerald" : "rose"} 
+                                        alert={profitMargin < 0}
+                                    />
+                                    <MetricCard 
+                                        title="Runway (Pista)" 
+                                        value={runway === Infinity ? 'Ilimitada' : `${Math.max(0, runway).toFixed(1)} meses`} 
+                                        subtext={runway === Infinity ? "Empresa rentable (Burn Rate S/ 0)" : `Burn Rate actual: S/ ${burnRate.toFixed(2)}`} 
+                                        icon={Activity} 
+                                        color={runway === Infinity || runway > 6 ? "blue" : "rose"} 
+                                        alert={runway !== Infinity && runway < 6}
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* Gráficos Finanzas */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
+                      
+                      {/* Gráfico 1: Egresos */}
+                      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow w-full">
+                         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2" title="Conoce hacia dónde se va el dinero en operaciones."><PieChart className="text-rose-500" size={20} /> Distribución de Egresos ({filterMonth})</h3>
+                         <div className="relative h-[250px] w-full">
+                             {expenseDonutData.total > 0 ? (
+                               <>
+                                   <ChartComponent 
+                                       type="doughnut"
+                                       data={{
+                                           labels: expenseDonutData.labels,
+                                           datasets: [{
+                                               data: expenseDonutData.data,
+                                               backgroundColor: ['#f43f5e', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#64748b'],
+                                               borderWidth: 0
+                                           }]
+                                       }}
+                                       options={{ maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 10 } } }, cutout: '75%' }}
+                                   />
+                                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mr-24">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Total Egresos</span>
+                                        <span className="text-xl font-bold text-slate-800">S/ {expenseDonutData.total.toFixed(2)}</span>
+                                   </div>
+                               </>
+                             ) : (
+                               <div className="h-full flex items-center justify-center text-slate-400 font-medium text-sm">No hay egresos registrados este mes.</div>
+                             )}
+                         </div>
+                      </div>
+
+                      {/* Gráfico 2: Origen de Liquidez (NUEVO) */}
+                      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow w-full">
+                         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2" title="Anual vs Mensual"><PieChart className="text-emerald-500" size={20} /> Origen de Liquidez SaaS ({filterMonth})</h3>
+                         <div className="relative h-[250px] w-full">
+                             {metrics.monthlySaaSIncome > 0 ? (
+                               <>
+                                   <ChartComponent 
+                                       type="doughnut"
+                                       data={{
+                                           labels: ['Mensual (1 mes)', 'Anual (12+ meses)', 'Semestral / Otros'],
+                                           datasets: [{
+                                               data: [metrics.cashFlowMonthlyPlans, metrics.cashFlowAnnualPlans, metrics.cashFlowOtherPlans],
+                                               backgroundColor: ['#3b82f6', '#10b981', '#f59e0b'],
+                                               borderWidth: 0
+                                           }]
+                                       }}
+                                       options={{ maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 10 } } }, cutout: '75%' }}
+                                   />
+                                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mr-24">
+                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Ingreso SaaS</span>
+                                        <span className="text-xl font-bold text-slate-800">S/ {metrics.monthlySaaSIncome.toFixed(2)}</span>
+                                   </div>
+                               </>
+                             ) : (
+                               <div className="h-full flex items-center justify-center text-slate-400 font-medium text-sm">No hay ingresos SaaS este mes.</div>
+                             )}
+                         </div>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+                {/* --- MÓDULO SAAS --- */}
+                {activeSubTab === 'saas' && (
+                  <div className="space-y-6 animate-fade-in-up">
+                    <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div>
+                        <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2"><Layers className="text-blue-600"/> Métricas SaaS de Crecimiento</h2>
+                        <p className="text-slate-500">Predicción, retención y valor de vida de tus usuarios.</p>
+                      </div>
+                      <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm transition-all hover:shadow-md">
+                        <Calendar size={18} className="text-blue-600" />
+                        <input type="month" value={filterMonth} onChange={(e) => { if (e.target.value) setFilterMonth(e.target.value); }} className="outline-none border-none bg-transparent text-slate-700 font-bold cursor-pointer" />
+                      </div>
+                    </header>
+
+                    {/* KPIs SaaS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <MetricCard title="MRR (Ingreso Recurrente)" value={`S/ ${saasMetrics.currentMonthMRR.toFixed(2)}`} subtext="Valor mensual de tus suscripciones activas." icon={Activity} color="emerald" />
+                        <MetricCard title="ARPU (Promedio x Cliente)" value={`S/ ${saasMetrics.currentMonthARPU.toFixed(2)}`} subtext="Ingreso mensual promedio que te deja cada usuario." icon={Users} color="blue" />
+                        <MetricCard title="LTV (Valor de Vida)" value={`S/ ${saasMetrics.currentMonthLTV.toFixed(2)}`} subtext="Total de S/ que te deja un cliente antes de irse." icon={Target} color="violet" />
+                        <MetricCard title="Churn Rate (Bajas)" value={`${saasMetrics.currentMonthChurnRate.toFixed(1)}%`} subtext={saasMetrics.currentMonthChurnRate > 5 ? "¡Alerta! Mayor al 5% mensual." : "Porcentaje mensual de clientes perdidos."} icon={TrendingDown} color="rose" alert={saasMetrics.currentMonthChurnRate > 5} />
+                    </div>
+
                     <div className="flex flex-col gap-6">
                       
-                      {/* GRÁFICO 1: Clientes Nuevos por Semana */}
+                      {/* Gráfico Puente Evolución MRR */}
                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow w-full">
-                         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><BarChart2 className="text-blue-500" size={20} /> Nuevos Clientes por Semana ({filterMonth.split('-')[0]})</h3>
-                         <div className="relative h-[300px] w-full">
+                         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><BarChart2 className="text-blue-600" size={20} /> Evolución del MRR (Gráfico de Puente)</h3>
+                         <div className="relative h-[350px] w-full">
                              <ChartComponent 
                                  type="bar" 
                                  data={{
-                                     labels: weeklyChartData.map(d => d.label),
+                                     labels: saasMetrics.mrrChart.map(d => d.month),
                                      datasets: [
-                                         { 
-                                            label: 'Nuevos Suscriptores', 
-                                            data: weeklyChartData.map(d => d.count), 
-                                            backgroundColor: 'rgba(59, 130, 246, 0.8)', 
-                                            borderRadius: 4,
-                                            hoverBackgroundColor: 'rgba(37, 99, 235, 1)'
-                                         }
+                                         { label: 'Nuevo MRR', data: saasMetrics.mrrChart.map(d => d.newMrr), backgroundColor: '#3b82f6', stack: 'Stack 0' },
+                                         { label: 'Reactivado MRR', data: saasMetrics.mrrChart.map(d => d.reactivatedMrr), backgroundColor: '#a855f7', stack: 'Stack 0' },
+                                         { label: 'Expansión MRR', data: saasMetrics.mrrChart.map(d => d.expMrr), backgroundColor: '#10b981', stack: 'Stack 0' },
+                                         { label: 'Contracción MRR', data: saasMetrics.mrrChart.map(d => d.conMrr), backgroundColor: '#f59e0b', stack: 'Stack 0' },
+                                         { label: 'MRR Perdido (Churn)', data: saasMetrics.mrrChart.map(d => d.churnMrr), backgroundColor: '#f43f5e', stack: 'Stack 0' },
+                                         { label: 'Total MRR', data: saasMetrics.mrrChart.map(d => d.totalMrr), type: 'line', borderColor: '#8b5cf6', backgroundColor: '#8b5cf6', borderWidth: 2, tension: 0.3, fill: false }
                                      ]
                                  }} 
                                  options={{ 
                                     responsive: true, maintainAspectRatio: false, 
-                                    plugins: { legend: { display: false }, tooltip: { callbacks: { title: (ctx) => `Semana ${ctx[0].label.replace('S','')}` } } }, 
-                                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } } 
+                                    plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } }, tooltip: { mode: 'index', intersect: false } }, 
+                                    scales: { y: { stacked: true }, x: { stacked: true, grid: { display: false } } } 
                                  }} 
                              />
                          </div>
                       </div>
 
-                      {}
-                      {/* GRÁFICO 2: Composición de Usuarios */}
+                      {/* Composición de Usuarios Line Chart */}
                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow w-full">
                          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><Users className="text-blue-600" size={20} /> Composición de Usuarios ({filterMonth.split('-')[0]})</h3>
                          <div className="relative h-[300px] w-full">
@@ -1000,44 +1315,51 @@ function doGet(e) {
                          </div>
                       </div>
 
-                      {/* GRÁFICO 3: Ingresos vs Utilidad */}
-                      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow w-full">
-                         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><TrendingUp className="text-emerald-600" size={20} /> Ingresos SaaS vs Utilidad Neta ({filterMonth.split('-')[0]})</h3>
-                         <div className="relative h-[300px] w-full">
-                             <ChartComponent 
-                                 type="line" 
-                                 data={{
-                                     labels: monthlyChartData.map(d => d.month),
-                                     datasets: [
-                                         { label: 'SaaS (S/)', data: monthlyChartData.map(d => d.saasRevenue), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.3, fill: true },
-                                         { label: 'Utilidad Neta (S/)', data: monthlyChartData.map(d => d.netProfit), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', tension: 0.3, fill: true, borderDash: [5, 5] }
-                                     ]
-                                 }} 
-                                 options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } }, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } }, interaction: { mode: 'index', intersect: false } }} 
-                             />
-                         </div>
-                      </div>
-
-                      {/* GRÁFICO 4: Tasa de Retención */}
-                      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow w-full">
-                         <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><RefreshCw className="text-violet-600" size={20} /> Continuidad de Clientes (Tasa de Retención %)</h3>
-                         <div className="relative h-[300px] w-full">
-                             <ChartComponent 
-                                 type="line" 
-                                 data={{
-                                     labels: monthlyChartData.map(d => d.month),
-                                     datasets: [
-                                         { label: 'Retención (%)', data: monthlyChartData.map(d => d.retentionRate), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.2)', tension: 0.3, fill: true }
-                                     ]
-                                 }} 
-                                 options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } } }, scales: { y: { min: 0, max: 100 }, x: { grid: { display: false } } }, interaction: { mode: 'index', intersect: false } }} 
-                             />
+                      {/* Cohort Heatmap */}
+                      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow overflow-hidden">
+                         <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2"><LayoutDashboard className="text-indigo-500" size={20} /> Análisis de Retención por Cohortes</h3>
+                         <p className="text-sm text-slate-500 mb-6">Mide qué porcentaje de los usuarios que se suscribieron en un mes específico (Cohorte) continúan pagando mes a mes.</p>
+                         
+                         <div className="overflow-x-auto rounded-xl border border-slate-200">
+                             <table className="w-full text-left text-xs sm:text-sm border-collapse">
+                                 <thead>
+                                     <tr className="bg-slate-50">
+                                         <th className="p-3 border-b border-r text-slate-600 font-bold whitespace-nowrap">Mes de Ingreso (Cohorte)</th>
+                                         <th className="p-3 border-b border-r text-slate-600 font-bold text-center">Nuevos Clientes</th>
+                                         {Array.from({length: 7}).map((_, i) => <th key={i} className="p-3 border-b text-slate-500 font-semibold text-center min-w-[60px]">Mes {i}</th>)}
+                                     </tr>
+                                 </thead>
+                                 <tbody>
+                                     {saasMetrics.cohortTable.length > 0 ? saasMetrics.cohortTable.map((cohort, idx) => (
+                                         <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50">
+                                             <td className="p-3 border-r border-slate-100 font-bold text-slate-700 whitespace-nowrap">{cohort.label}</td>
+                                             <td className="p-3 border-r border-slate-100 text-center font-bold text-slate-800 bg-slate-50">{cohort.total}</td>
+                                             {cohort.retentions.map((val, i) => {
+                                                if (val === null) return <td key={i} className="p-3 text-center border-l border-white/50 bg-slate-50 text-slate-300">-</td>;
+                                                const opacity = (val / 100) * 0.9 + 0.1;
+                                                const bgColor = `rgba(16, 185, 129, ${opacity})`;
+                                                const textColor = val > 40 ? '#022c22' : '#0f172a';
+                                                const isZero = val === 0;
+                                                return (
+                                                    <td key={i} className="p-3 text-center border-l border-white font-medium heatmap-cell cursor-default" 
+                                                        style={{ backgroundColor: isZero ? '#f8fafc' : bgColor, color: isZero ? '#94a3b8' : textColor }}>
+                                                        {val.toFixed(0)}%
+                                                    </td>
+                                                );
+                                             })}
+                                         </tr>
+                                     )) : (
+                                         <tr><td colSpan="9" className="p-8 text-center text-slate-500">No hay datos suficientes para armar cohortes SaaS.</td></tr>
+                                     )}
+                                 </tbody>
+                             </table>
                          </div>
                       </div>
 
                     </div>
                   </div>
                 )}
+
 
                 {}
                 {activeSubTab === 'cashflow' && (
@@ -1169,7 +1491,7 @@ function doGet(e) {
                   </div>
                 )}
 
-                {}
+                {/* --- CONFIGURACIÓN --- */}
                 {activeSubTab === 'settings' && (
                   <div className="space-y-6 max-w-4xl">
                      <header><h2 className="text-2xl font-bold text-slate-800">Configuración</h2><p className="text-slate-500">Ajusta las conexiones y preferencias de tu gestor.</p></header>
@@ -1222,13 +1544,16 @@ function doGet(e) {
             if(notification) { const timer = setTimeout(() => setNotification(null), 4000); return () => clearTimeout(timer); }
           }, [notification]);
 
-          const NavItem = ({ id, icon: Icon, label }) => (
+          const NavItem = ({ id, icon: Icon, label, alert }) => (
              <button 
                 onClick={() => setActiveModule(id)} 
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all mb-1 ${activeModule === id ? 'bg-blue-600 text-white shadow-md font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all mb-1 ${activeModule === id ? 'bg-blue-600 text-white shadow-md font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
              >
-                <Icon size={18} className={activeModule === id ? 'text-blue-200' : ''} />
-                <span>{label}</span>
+                <div className="flex items-center gap-3">
+                    <Icon size={18} className={activeModule === id ? 'text-blue-200' : ''} />
+                    <span>{label}</span>
+                </div>
+                {alert && <div className="w-2 h-2 rounded-full bg-rose-500"></div>}
              </button>
           );
 
@@ -1253,8 +1578,9 @@ function doGet(e) {
                  <div className="flex-1 overflow-y-auto hide-scroll p-3 space-y-6 mt-2">
                     {/* Grupo Finanzas */}
                     <div>
-                       {sidebarOpen && <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2 ml-2">Finanzas</p>}
-                       <NavItem id="finance-dashboard" icon={LayoutDashboard} label={sidebarOpen ? "Dashboard" : ""} />
+                       {sidebarOpen && <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2 ml-2">Módulos</p>}
+                       <NavItem id="finance-dashboard" icon={LayoutDashboard} label={sidebarOpen ? "Finanzas" : ""} />
+                       <NavItem id="finance-saas" icon={Layers} label={sidebarOpen ? "Métricas SaaS" : ""} alert={true} />
                        <NavItem id="finance-cashflow" icon={Wallet} label={sidebarOpen ? "Flujo de Caja" : ""} />
                        <NavItem id="finance-subscriptions" icon={ShieldCheck} label={sidebarOpen ? "Suscripciones" : ""} />
                        <NavItem id="finance-settings" icon={Settings} label={sidebarOpen ? "Configuración" : ""} />
