@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- Import Map para resolver dependencias de React y JSX Runtime correctamente -->
     <script type="importmap">
     {
         "imports": {
@@ -59,25 +60,32 @@
           PieChart, Target, Activity, Layers, MessageCircle
         } from 'lucide-react';
 
+        
+        // Obtener la fecha local correctamente formateada en YYYY-MM-DD
         const getLocalToday = () => {
              const d = new Date();
              d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
              return d.toISOString().split('T')[0];
         };
 
-        const addMonthsToDate = (dateStr, months) => {
-          const date = new Date(dateStr + 'T00:00:00'); 
-          date.setMonth(date.getMonth() + Number(months));
-          return date.toISOString().split('T')[0];
-        };
-
-        const calculateSubStatus = (endDateStr) => {
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            const endDate = new Date(endDateStr + 'T00:00:00');
-            const diffTime = endDate - today;
-            const remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            return { remainingDays, status: remainingDays < 0 ? 'CORTE' : 'ACTIVO' };
+        const parseSafeDate = (val) => {
+          if (!val) return null;
+          if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+          if (typeof val === 'number') {
+            const d = new Date(Math.round((val - 25569) * 86400 * 1000));
+            return isNaN(d.getTime()) ? null : d;
+          }
+          if (typeof val === 'string') {
+            let str = val.replace(' ', 'T');
+            let d = new Date(str);
+            if (!isNaN(d.getTime())) return d;
+            const parts = val.split(/[\/\-\s]/);
+            if (parts.length >= 3 && parts[2].length === 4) {
+              d = new Date(`${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}T00:00:00`);
+              if (!isNaN(d.getTime())) return d;
+            }
+          }
+          return null;
         };
 
         const ChartComponent = ({ type, data, options }) => {
@@ -97,6 +105,21 @@
             }, [data, options, type]);
 
             return <canvas ref={canvasRef} />;
+        };
+
+        const addMonthsToDate = (dateStr, months) => {
+          const date = new Date(dateStr + 'T00:00:00'); 
+          date.setMonth(date.getMonth() + Number(months));
+          return date.toISOString().split('T')[0];
+        };
+        
+        const calculateSubStatus = (endDateStr) => {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const endDate = new Date(endDateStr + 'T00:00:00');
+            const diffTime = endDate - today;
+            const remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return { remainingDays, status: remainingDays < 0 ? 'CORTE' : 'ACTIVO' };
         };
 
         const appsScriptCode = `function doPost(e) {
@@ -705,7 +728,8 @@ function doGet(e) {
                 cohortGroups[ym].users.push(client);
             });
 
-            const cohortsList = Object.keys(cohortGroups).sort().slice(-6); 
+            // EXPANDIR A 12 MESES
+            const cohortsList = Object.keys(cohortGroups).sort().slice(-12); 
             const cohortTable = cohortsList.map(ym => {
                 const [y, m] = ym.split('-');
                 const cYear = parseInt(y, 10);
@@ -713,7 +737,7 @@ function doGet(e) {
                 const cohortStartMs = new Date(cYear, cMonth, 1).getTime();
                 
                 const retentions = [];
-                for (let i = 0; i <= 6; i++) { 
+                for (let i = 0; i <= 12; i++) { 
                     const checkDate = new Date(cYear, cMonth + i + 1, 0, 23, 59, 59);
                     const checkMs = checkDate.getTime();
                     const todayEOM = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).getTime();
@@ -1368,7 +1392,7 @@ function doGet(e) {
                          </div>
                       </div>
 
-                      {/* Mapa de Cohortes y Panel Inline Interactivo */}
+                      {/* Mapa de Cohortes y Panel Inline Interactivo (12 MESES) */}
                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow overflow-hidden">
                          <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2"><LayoutDashboard className="text-indigo-500" size={20} /> Análisis de Retención por Cohortes</h3>
                          <p className="text-sm text-slate-500 mb-6">Mide qué porcentaje de los usuarios que se suscribieron en un mes específico (Cohorte) continúan pagando mes a mes.</p>
@@ -1379,7 +1403,8 @@ function doGet(e) {
                                      <tr className="bg-slate-50">
                                          <th className="p-3 border-b border-r text-slate-600 font-bold whitespace-nowrap">Mes de Ingreso (Cohorte)</th>
                                          <th className="p-3 border-b border-r text-slate-600 font-bold text-center">Nuevos Clientes</th>
-                                         {Array.from({length: 7}).map((_, i) => <th key={i} className="p-3 border-b text-slate-500 font-semibold text-center min-w-[60px]">Mes {i}</th>)}
+                                         {/* 13 Columnas: Mes 0 a Mes 12 */}
+                                         {Array.from({length: 13}).map((_, i) => <th key={i} className="p-3 border-b text-slate-500 font-semibold text-center min-w-[60px]">Mes {i}</th>)}
                                      </tr>
                                  </thead>
                                  <tbody>
@@ -1411,7 +1436,7 @@ function doGet(e) {
                                              })}
                                          </tr>
                                      )}) : (
-                                         <tr><td colSpan="9" className="p-8 text-center text-slate-500">No hay datos suficientes para armar cohortes SaaS.</td></tr>
+                                         <tr><td colSpan="15" className="p-8 text-center text-slate-500">No hay datos suficientes para armar cohortes SaaS.</td></tr>
                                      )}
                                  </tbody>
                              </table>
