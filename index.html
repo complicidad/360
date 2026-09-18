@@ -9,7 +9,6 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Import Map para resolver dependencias de React y JSX Runtime correctamente -->
     <script type="importmap">
     {
         "imports": {
@@ -60,32 +59,25 @@
           PieChart, Target, Activity, Layers, MessageCircle
         } from 'lucide-react';
 
-        
-        // Obtener la fecha local correctamente formateada en YYYY-MM-DD
         const getLocalToday = () => {
              const d = new Date();
              d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
              return d.toISOString().split('T')[0];
         };
 
-        const parseSafeDate = (val) => {
-          if (!val) return null;
-          if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
-          if (typeof val === 'number') {
-            const d = new Date(Math.round((val - 25569) * 86400 * 1000));
-            return isNaN(d.getTime()) ? null : d;
-          }
-          if (typeof val === 'string') {
-            let str = val.replace(' ', 'T');
-            let d = new Date(str);
-            if (!isNaN(d.getTime())) return d;
-            const parts = val.split(/[\/\-\s]/);
-            if (parts.length >= 3 && parts[2].length === 4) {
-              d = new Date(`${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}T00:00:00`);
-              if (!isNaN(d.getTime())) return d;
-            }
-          }
-          return null;
+        const addMonthsToDate = (dateStr, months) => {
+          const date = new Date(dateStr + 'T00:00:00'); 
+          date.setMonth(date.getMonth() + Number(months));
+          return date.toISOString().split('T')[0];
+        };
+
+        const calculateSubStatus = (endDateStr) => {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const endDate = new Date(endDateStr + 'T00:00:00');
+            const diffTime = endDate - today;
+            const remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return { remainingDays, status: remainingDays < 0 ? 'CORTE' : 'ACTIVO' };
         };
 
         const ChartComponent = ({ type, data, options }) => {
@@ -105,21 +97,6 @@
             }, [data, options, type]);
 
             return <canvas ref={canvasRef} />;
-        };
-
-        const addMonthsToDate = (dateStr, months) => {
-          const date = new Date(dateStr + 'T00:00:00'); 
-          date.setMonth(date.getMonth() + Number(months));
-          return date.toISOString().split('T')[0];
-        };
-        
-        const calculateSubStatus = (endDateStr) => {
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            const endDate = new Date(endDateStr + 'T00:00:00');
-            const diffTime = endDate - today;
-            const remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            return { remainingDays, status: remainingDays < 0 ? 'CORTE' : 'ACTIVO' };
         };
 
         const appsScriptCode = `function doPost(e) {
@@ -179,7 +156,6 @@ function doGet(e) {
 }`;
 
         const ModalCashFlow = ({ onClose, onSave, isSaving, initialData }) => {
-          // Diferenciar entre una Edición real (tiene ID) y una Renovación Rápida (tiene datos pero NO ID)
           const isEdit = !!(initialData && initialData.id); 
           const isTemplate = !!(initialData && !initialData.id);
 
@@ -206,7 +182,6 @@ function doGet(e) {
           const [months, setMonths] = useState(initMonths);
           
           const [date, setDate] = useState(isEdit ? initialData.date : getLocalToday());
-          // Para renovación rápida, priorizar la fecha de suscripción enviada en el initialData
           const [subscriptionDate, setSubscriptionDate] = useState(initialData?.subscriptionDate || (isEdit ? (initialData.subscriptionDate || initialData.date) : getLocalToday()));
           const [voucherType, setVoucherType] = useState(isEdit ? (initialData.voucher || 'Pendiente / Sin Comprobante') : 'Pendiente / Sin Comprobante');
           const [promoBienvenida, setPromoBienvenida] = useState(false);
@@ -254,7 +229,7 @@ function doGet(e) {
             if (isSaving) return;
             const formData = new FormData(e.target);
             onSave({
-              id: isEdit ? initialData.id : null, // Si es null, el padre generará un ID nuevo
+              id: isEdit ? initialData.id : null,
               date: formData.get('date') || date, 
               subscriptionDate: (type === 'ingreso' && isSaasCategory) ? subscriptionDate : (formData.get('date') || date),
               client: formData.get('client') || '', concept: manualConcept, category: category,
@@ -394,13 +369,13 @@ function doGet(e) {
         };
 
         const MetricCard = ({ title, value, subtext, icon: Icon, color, alert }) => (
-            <div className={`bg-white p-5 rounded-2xl shadow-sm border ${alert ? 'border-rose-400 ring-2 ring-rose-400/20' : 'border-slate-100'} flex flex-col justify-center hover:shadow-md transition-all relative overflow-hidden`}>
+            <div className={`bg-white p-5 rounded-2xl shadow-sm border ${alert ? 'border-rose-400 ring-2 ring-rose-400/20' : 'border-slate-100'} flex flex-col justify-center hover:shadow-md transition-all relative overflow-hidden h-full`}>
                 <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl bg-${color}-100 text-${color}-600`}><Icon size={24} /></div>
+                    <div className={`p-3 rounded-xl bg-${color}-100 text-${color}-600 shrink-0`}><Icon size={24} /></div>
                     <div>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">{title}</p>
-                        <p className={`text-2xl font-black ${alert ? 'text-rose-600' : 'text-slate-800'}`}>{value}</p>
-                        <p className="text-[10px] font-medium text-slate-500 mt-0.5">{subtext}</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider leading-tight mb-1">{title}</p>
+                        <p className={`text-2xl font-black leading-none ${alert ? 'text-rose-600' : 'text-slate-800'}`}>{value}</p>
+                        <p className="text-[10px] font-medium text-slate-500 mt-1.5 leading-tight">{subtext}</p>
                     </div>
                 </div>
             </div>
@@ -423,10 +398,14 @@ function doGet(e) {
           const [activeFilter, setActiveFilter] = useState(null);
           const [cashFlowSearch, setCashFlowSearch] = useState('');
           const [cashFlowTypeFilter, setCashFlowTypeFilter] = useState('ALL');
+          const [currentPage, setCurrentPage] = useState(1);
+          const ITEMS_PER_PAGE = 50;
+
           const [subSearch, setSubSearch] = useState('');
           const [subFilter, setSubFilter] = useState('ALL');
 
-          useEffect(() => { setActiveFilter(null); setActiveCohortDetails(null); }, [filterMonth, activeSubTab]);
+          useEffect(() => { setActiveFilter(null); }, [filterMonth]);
+          useEffect(() => { setCurrentPage(1); }, [cashFlowSearch, cashFlowTypeFilter]);
 
           const showMessage = (msg, type = 'success') => setNotification({ msg, type });
 
@@ -487,9 +466,18 @@ function doGet(e) {
           const sendToGoogleSheets = async (action, payload) => {
             if (!scriptUrl || scriptUrl.trim() === '') return true;
             try {
-              await fetch(scriptUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action, payload }) });
+              const response = await fetch(scriptUrl, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+                body: JSON.stringify({ action, payload }) 
+              });
+              const result = await response.json();
+              if (result.status === "error") throw new Error(result.msg);
               return true;
-            } catch (error) { return false; }
+            } catch (error) { 
+              console.error("Error de API:", error);
+              return false; 
+            }
           };
 
           const handleSaveConfig = () => {
@@ -514,6 +502,12 @@ function doGet(e) {
                 return matchesSearch && matchesType;
              });
           }, [cashFlowWithBalance, cashFlowSearch, cashFlowTypeFilter]);
+
+          const totalPages = Math.ceil(displayedCashFlow.length / ITEMS_PER_PAGE);
+          const paginatedCashFlow = useMemo(() => {
+              const start = (currentPage - 1) * ITEMS_PER_PAGE;
+              return displayedCashFlow.slice(start, start + ITEMS_PER_PAGE);
+          }, [displayedCashFlow, currentPage]);
 
           const derivedSubscriptions = useMemo(() => {
             const subsMap = {};
@@ -743,48 +737,25 @@ function doGet(e) {
 
                 // Generar objetos detallados para el Panel Inline interactivo
                 const enrichedUsers = cohortGroups[ym].users.map(client => {
-                    const maxEndMs = Math.max(...clientPeriods[client].map(p => p.endMs));
-                    const isActiveNow = maxEndMs >= todayMs;
+                    const isActiveNow = getMrrAtDate(client, todayMs) > 0;
+                    let statusText = 'Activo';
                     
-                    // Cálculo de días restantes
-                    const diffTime = maxEndMs - todayMs;
-                    const remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    
-                    let statusText = '';
-                    let statusLevel = 0; // Para estilos
-                    
-                    if (isActiveNow) {
-                        if (remainingDays <= 5) {
-                            statusText = `Por Vencer (${remainingDays}d)`;
-                            statusLevel = 1; // warning
-                        } else {
-                            statusText = 'Activo';
-                            statusLevel = 0; // ok
-                        }
-                    } else {
+                    if (!isActiveNow) {
+                        const maxEndMs = Math.max(...clientPeriods[client].map(p => p.endMs));
                         let monthDiff = Math.floor((maxEndMs - cohortStartMs) / (1000 * 60 * 60 * 24 * 30.44));
                         statusText = `Baja (Mes ${Math.max(0, monthDiff)})`;
-                        statusLevel = 2; // error
                     }
                     
-                    // Formatear la fecha de vencimiento
-                    const endD = new Date(maxEndMs);
-                    const endDateStr = `${endD.getDate().toString().padStart(2, '0')}/${(endD.getMonth()+1).toString().padStart(2, '0')}/${endD.getFullYear()}`;
-                    
-                    // Extraer posible número telefónico para WhatsApp
+                    // Extraer posible número telefónico para WhatsApp (Busca 9 digitos, o codigos de pais)
                     let phone = null;
                     const match9 = client.match(/\b9\d{8}\b/);
                     const matchInt = client.match(/\+?\d{11,14}\b/);
                     
-                    if (match9) phone = '51' + match9[0];
+                    if (match9) phone = '51' + match9[0]; // Asume Perú
                     else if (matchInt) phone = matchInt[0].replace('+', '');
 
-                    return { name: client, isActiveNow, statusText, statusLevel, phone, maxEndMs, endDateStr };
+                    return { name: client, isActiveNow, statusText, phone };
                 });
-
-                // ORDENAR POR FECHA DE VENCIMIENTO (maxEndMs ASCENDENTE)
-                // Esto colocará a las Bajas y a los más próximos a vencer en la parte superior.
-                enrichedUsers.sort((a, b) => a.maxEndMs - b.maxEndMs);
 
                 return { 
                     label: `${monthsNames[cMonth]} ${cYear}`, 
@@ -808,7 +779,6 @@ function doGet(e) {
 
             const userPeriods = {};
             const firstSeen = {};
-
             const monthlySaasRev = Array(12).fill(0);
             const monthlyNet = Array(12).fill(0);
 
@@ -822,9 +792,7 @@ function doGet(e) {
                     if (entryDate.getFullYear() === targetYear) {
                         const eMonth = entryDate.getMonth();
                         monthlyNet[eMonth] += (inc - exp);
-                        if (inc > 0 && isSaas) {
-                            monthlySaasRev[eMonth] += inc;
-                        }
+                        if (inc > 0 && isSaas) monthlySaasRev[eMonth] += inc;
                     }
                 }
 
@@ -844,13 +812,10 @@ function doGet(e) {
                         endDateObj.setMonth(endDateObj.getMonth() + months);
                         const end = endDateObj.getTime();
 
-                        if (!firstSeen[client] || start < firstSeen[client]) {
-                            firstSeen[client] = start;
-                        }
-
+                        if (!firstSeen[client] || start < firstSeen[client]) firstSeen[client] = start;
                         if (!userPeriods[client]) userPeriods[client] = [];
+                        
                         const periods = userPeriods[client];
-
                         if (periods.length > 0) {
                             let lastP = periods[periods.length - 1];
                             if (start <= lastP.end) {
@@ -872,7 +837,6 @@ function doGet(e) {
                 let y = targetYear; let mo = m;
                 if (m === -1) { y = targetYear - 1; mo = 11; }
                 const mEnd = new Date(y, mo + 1, 0, 23, 59, 59).getTime();
-                
                 activeSets[m] = new Set();
                 Object.keys(userPeriods).forEach(client => {
                     const isActive = userPeriods[client].some(p => p.start <= mEnd && p.end >= mEnd);
@@ -885,12 +849,7 @@ function doGet(e) {
                 const prevActive = activeSets[i-1];
                 const currActive = activeSets[i];
 
-                let newUsers = 0;
-                let recurringUsers = 0;
-                let reactivatedUsers = 0;
-                let churnedUsers = 0;
-                let expiringUsers = 0; 
-
+                let newUsers = 0, recurringUsers = 0, reactivatedUsers = 0, churnedUsers = 0, expiringUsers = 0; 
                 const currentMonthStart = new Date(targetYear, i, 1).getTime();
                 const currentMonthEnd = new Date(targetYear, i + 1, 0, 23, 59, 59).getTime();
 
@@ -899,25 +858,17 @@ function doGet(e) {
                         recurringUsers++; 
                     } else {
                         const firstTime = firstSeen[u];
-                        if (firstTime >= currentMonthStart && firstTime <= currentMonthEnd) {
-                            newUsers++;
-                        } else {
-                            reactivatedUsers++; 
-                        }
+                        if (firstTime >= currentMonthStart && firstTime <= currentMonthEnd) newUsers++;
+                        else reactivatedUsers++; 
                     }
                 });
 
                 prevActive.forEach(u => {
                     if (!currActive.has(u)) {
                         const maxEnd = Math.max(...userPeriods[u].map(p => p.end));
-                        
-                        // LÓGICA CORREGIDA: Si el mes analizado ya pasó, o la fecha de corte ya pasó, es Baja Real.
-                        if (currentMonthEnd < todayTime || maxEnd < todayTime) {
-                            churnedUsers++;
-                        } else {
-                            // Solo es "Por Vencer" si la pérdida ocurre en este mes vigente o meses futuros
-                            expiringUsers++;
-                        }
+                        // SEPARACIÓN CORRECTA: Churn real (historico) vs Por Vencer
+                        if (currentMonthEnd < todayTime || maxEnd < todayTime) churnedUsers++;
+                        else expiringUsers++;
                     }
                 });
 
@@ -947,9 +898,7 @@ function doGet(e) {
                     const isSaas = String(entry.category || '').includes('SaaS') || (!entry.category && entry.voucher);
                     if (months > 0 && isSaas) {
                         const client = String(entry.client).trim().toLowerCase();
-                        if (!firstSeen[client]) {
-                            firstSeen[client] = new Date(entry.date + 'T00:00:00');
-                        }
+                        if (!firstSeen[client]) firstSeen[client] = new Date(entry.date + 'T00:00:00');
                     }
                 }
             });
@@ -962,21 +911,15 @@ function doGet(e) {
                 return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
             };
 
-            const weeksData = Array.from({ length: 52 }, (_, i) => ({
-                weekNumber: i + 1,
-                label: `S${i + 1}`,
-                count: 0
-            }));
+            const weeksData = Array.from({ length: 52 }, (_, i) => ({ weekNumber: i + 1, label: `S${i + 1}`, count: 0 }));
             
             Object.values(firstSeen).forEach(date => {
                 if (date.getFullYear() === targetYear) {
                     let w = getISOWeek(date);
-                    if (w > 52) w = 52; 
-                    if (w < 1) w = 1;
+                    if (w > 52) w = 52; if (w < 1) w = 1;
                     weeksData[w - 1].count++;
                 }
             });
-
             return weeksData;
           }, [sortedCashFlow, filterMonth]);
 
@@ -986,16 +929,12 @@ function doGet(e) {
             let pMonth = targetMonth - 1; let pYear = targetYear;
             if (pMonth < 0) { pMonth = 11; pYear -= 1; }
 
-            let globalIncome = 0; let globalExpense = 0;
-            let prevMonthIncome = 0; let prevMonthExpense = 0;
-            let monthlyIncome = 0; let monthlyExpense = 0;
-            let monthlySaaSIncome = 0; let monthlyOtherIncome = 0;
-            let monthlyCommissionExpense = 0; let monthlyOtherExpense = 0;
+            let globalIncome = 0, globalExpense = 0, prevMonthIncome = 0, prevMonthExpense = 0;
+            let monthlyIncome = 0, monthlyExpense = 0, monthlySaaSIncome = 0, monthlyOtherIncome = 0;
+            let monthlyCommissionExpense = 0, monthlyOtherExpense = 0;
             
             let monthlyMarketingExpense = 0;
-            let cashFlowMonthlyPlans = 0;
-            let cashFlowAnnualPlans = 0;
-            let cashFlowOtherPlans = 0;
+            let cashFlowMonthlyPlans = 0, cashFlowAnnualPlans = 0, cashFlowOtherPlans = 0;
 
             sortedCashFlow.forEach(item => {
               const inc = Number(item.income) || 0; const exp = Number(item.expense) || 0;
@@ -1011,7 +950,6 @@ function doGet(e) {
                   if (exp > 0) {
                      if (categoryStr.toLowerCase().includes('comision') || categoryStr.toLowerCase().includes('comisión')) monthlyCommissionExpense += exp;
                      else monthlyOtherExpense += exp;
-                     
                      if (categoryStr === 'Marketing y Publicidad') monthlyMarketingExpense += exp;
                   }
 
@@ -1024,10 +962,7 @@ function doGet(e) {
                         if (m >= 12) cashFlowAnnualPlans += inc;
                         else if (m === 1) cashFlowMonthlyPlans += inc;
                         else cashFlowOtherPlans += inc;
-                    }
-                    else {
-                        monthlyOtherIncome += inc;
-                    }
+                    } else monthlyOtherIncome += inc;
                   }
                 }
                 if (itemMonth === pMonth && itemYear === pYear) {
@@ -1102,6 +1037,7 @@ function doGet(e) {
               
               <div className="animate-fade-in max-w-7xl mx-auto space-y-6">
                 
+                {}
                 {activeSubTab === 'dashboard' && (
                   <div className="space-y-6">
                     <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1121,7 +1057,7 @@ function doGet(e) {
                       </div>
                     </header>
 
-                    {/* KPIs Cards */}
+                    {/* KPIs Finanzas */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-800 flex flex-col justify-center hover:shadow-md transition-shadow relative overflow-hidden lg:col-span-2">
                         <div className="flex items-center gap-4">
@@ -1166,7 +1102,7 @@ function doGet(e) {
                       </div>
                     </div>
 
-                    {/* Tabla de Detalle al hacer Clic en un KPI */}
+                    {/* Tabla de Detalle KPI Inline */}
                     {activeFilter && (
                       <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-6 animate-fade-in">
                         <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
@@ -1180,7 +1116,6 @@ function doGet(e) {
                           </h3>
                           <button onClick={() => setActiveFilter(null)} className="text-slate-400 hover:text-slate-600 p-1 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"><X size={20}/></button>
                         </div>
-
                         <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
                           <table className="w-full text-left text-sm whitespace-nowrap">
                             <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_#e2e8f0]">
@@ -1206,7 +1141,7 @@ function doGet(e) {
                       </div>
                     )}
 
-                    {/* DECISIONES SOBRE EL FLUJO DE EFECTIVO */}
+                    {/* DECISIONES DE FLUJO DE CAJA (CAC, LTV, PAYBACK) */}
                     {(() => {
                         const targetMonth = parseInt(filterMonth.split('-')[1], 10) - 1;
                         const currentNewUsers = monthlyChartData[targetMonth]?.newUsers || 0;
@@ -1257,9 +1192,8 @@ function doGet(e) {
                         );
                     })()}
 
-                    {/* Gráficos Finanzas */}
+                    {/* Gráficos de Dona Finanzas */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
-                      
                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow w-full">
                          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2" title="Conoce hacia dónde se va el dinero en operaciones."><PieChart className="text-rose-500" size={20} /> Distribución de Egresos ({filterMonth})</h3>
                          <div className="relative h-[250px] w-full">
@@ -1315,12 +1249,11 @@ function doGet(e) {
                              )}
                          </div>
                       </div>
-
                     </div>
                   </div>
                 )}
 
-                {/* --- MÓDULO SAAS --- */}
+                {}
                 {activeSubTab === 'saas' && (
                   <div className="space-y-6 animate-fade-in-up">
                     <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1334,7 +1267,6 @@ function doGet(e) {
                       </div>
                     </header>
 
-                    {/* KPIs SaaS */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <MetricCard title="MRR (Ingreso Recurrente)" value={`S/ ${saasMetrics.currentMonthMRR.toFixed(2)}`} subtext="Valor mensual de tus suscripciones activas." icon={Activity} color="emerald" />
                         <MetricCard title="ARPU (Promedio x Cliente)" value={`S/ ${saasMetrics.currentMonthARPU.toFixed(2)}`} subtext="Ingreso mensual promedio que te deja cada usuario." icon={Users} color="blue" />
@@ -1344,6 +1276,7 @@ function doGet(e) {
 
                     <div className="flex flex-col gap-6">
                       
+                      {/* Gráfico Puente de MRR (Waterfall) */}
                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow w-full">
                          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><BarChart2 className="text-blue-600" size={20} /> Evolución del MRR (Gráfico de Puente)</h3>
                          <div className="relative h-[350px] w-full">
@@ -1369,6 +1302,7 @@ function doGet(e) {
                          </div>
                       </div>
 
+                      {/* Composición de Usuarios Lineal */}
                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow w-full">
                          <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2"><Users className="text-blue-600" size={20} /> Composición de Usuarios ({filterMonth.split('-')[0]})</h3>
                          <div className="relative h-[300px] w-full">
@@ -1379,7 +1313,7 @@ function doGet(e) {
                                      datasets: [
                                          { label: 'Nuevos', data: monthlyChartData.map(d => d.newUsers), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.3, borderWidth: 2, fill: true },
                                          { label: 'Recurrentes', data: monthlyChartData.map(d => d.recurringUsers), borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.3, borderWidth: 2, fill: true },
-                                         { label: 'Reactivados', data: monthlyChartData.map(d => d.reactivatedUsers), borderColor: '#a855f7', backgroundColor: 'rgba(168, 85, 247, 0.1)', tension: 0.3, borderWidth: 2, fill: true, borderDash: [5, 5] },
+                                         { label: 'Reactivados', data: monthlyChartData.map(d => d.reactivatedUsers), borderColor: '#8b5cf6', backgroundColor: 'rgba(139, 92, 246, 0.1)', tension: 0.3, borderWidth: 2, fill: true, borderDash: [5, 5] },
                                          { label: 'Bajas (Churn)', data: monthlyChartData.map(d => d.churnedUsers), borderColor: '#f43f5e', backgroundColor: 'rgba(244, 63, 94, 0.1)', tension: 0.3, borderWidth: 2, fill: true },
                                          { label: 'Por Vencer (Vigentes)', data: monthlyChartData.map(d => d.expiringUsers), borderColor: '#f59e0b', backgroundColor: 'rgba(245, 158, 11, 0.1)', tension: 0.3, borderWidth: 2, fill: true, borderDash: [5, 5] }
                                      ]
@@ -1389,6 +1323,7 @@ function doGet(e) {
                          </div>
                       </div>
 
+                      {/* Mapa de Cohortes y Panel Inline Interactivo */}
                       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow overflow-hidden">
                          <h3 className="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2"><LayoutDashboard className="text-indigo-500" size={20} /> Análisis de Retención por Cohortes</h3>
                          <p className="text-sm text-slate-500 mb-6">Mide qué porcentaje de los usuarios que se suscribieron en un mes específico (Cohorte) continúan pagando mes a mes.</p>
@@ -1448,37 +1383,21 @@ function doGet(e) {
                                     <button onClick={() => setActiveCohortDetails(null)} className="text-slate-400 hover:text-slate-600 p-1 bg-white rounded-md transition-colors shadow-sm"><X size={14}/></button>
                                 </div>
                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto">
-                                    {activeCohortDetails.users.map((u, i) => {
-                                        let borderClass = 'border-emerald-200';
-                                        let badgeClass = 'bg-emerald-100 text-emerald-700';
-                                        if (u.statusLevel === 1) {
-                                            borderClass = 'border-amber-200';
-                                            badgeClass = 'bg-amber-100 text-amber-700';
-                                        } else if (u.statusLevel === 2) {
-                                            borderClass = 'border-rose-200';
-                                            badgeClass = 'bg-rose-100 text-rose-700';
-                                        }
-
-                                        return (
-                                        <div key={i} className={`flex flex-col gap-2 bg-white p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow ${borderClass}`}>
+                                    {activeCohortDetails.users.map((u, i) => (
+                                        <div key={i} className={`flex flex-col gap-2 bg-white p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow ${u.isActiveNow ? 'border-emerald-200' : 'border-rose-200'}`}>
                                             <div className="flex justify-between items-start">
-                                                <div className="flex flex-col overflow-hidden pr-2">
-                                                    <span className="text-sm font-bold text-slate-700 truncate" title={u.name}>{u.name}</span>
-                                                    <span className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
-                                                        <Clock size={10}/> Vence: {u.endDateStr}
-                                                    </span>
-                                                </div>
-                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${badgeClass}`}>
+                                                <span className="text-sm font-bold text-slate-700 truncate pr-2" title={u.name}>{u.name}</span>
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${u.isActiveNow ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                                                     {u.statusText}
                                                 </span>
                                             </div>
                                             {u.phone && (
                                                 <a href={`https://wa.me/${u.phone}?text=Hola,%20quería%20contactarte%20sobre%20tu%20suscripción%20al%20sistema...`} target="_blank" rel="noreferrer" className="mt-1 flex items-center justify-center gap-1.5 w-full py-1.5 bg-[#25D366]/10 text-[#075E54] hover:bg-[#25D366]/20 rounded-md transition-colors text-xs font-bold">
-                                                    <MessageCircle size={14} /> Contactar
+                                                    <MessageCircle size={14} /> Contactar por WhatsApp
                                                 </a>
                                             )}
                                         </div>
-                                    )})}
+                                    ))}
                                 </div>
                             </div>
                          )}
@@ -1487,7 +1406,6 @@ function doGet(e) {
                     </div>
                   </div>
                 )}
-
 
                 {}
                 {activeSubTab === 'cashflow' && (
@@ -1517,7 +1435,7 @@ function doGet(e) {
                             </tr>
                           </thead>
                           <tbody>
-                            {displayedCashFlow.map((item) => (
+                            {paginatedCashFlow.map((item) => (
                               <tr key={item.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
                                 <td className="p-4">
                                   <div className="text-slate-700 font-medium flex items-center gap-1.5"><Wallet size={12} className="text-slate-400"/> {item.date}</div>
@@ -1544,15 +1462,25 @@ function doGet(e) {
                                 <td className="p-4 text-center"><button onClick={() => {setEditingRecord(item); setShowCashFlowModal(true);}} className="p-2 bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors" title="Editar registro"><Edit2 size={16} /></button></td>
                               </tr>
                             ))}
-                            {displayedCashFlow.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-slate-500">{isFetchingData ? 'Cargando datos...' : 'No se encontraron registros de caja.'}</td></tr>}
+                            {paginatedCashFlow.length === 0 && <tr><td colSpan="7" className="p-8 text-center text-slate-500">{isFetchingData ? 'Cargando datos...' : 'No se encontraron registros de caja.'}</td></tr>}
                           </tbody>
                         </table>
                       </div>
+                      
+                      {totalPages > 1 && (
+                        <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-slate-50">
+                          <p className="text-sm text-slate-500">Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1} a {Math.min(currentPage * ITEMS_PER_PAGE, displayedCashFlow.length)} de {displayedCashFlow.length} registros</p>
+                          <div className="flex items-center gap-2">
+                             <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-50 text-sm font-medium transition-colors">Anterior</button>
+                             <span className="text-sm font-bold text-slate-700 px-2">Página {currentPage} de {totalPages}</span>
+                             <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-50 text-sm font-medium transition-colors">Siguiente</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
 
-                {}
                 {activeSubTab === 'subscriptions' && (
                   <div className="space-y-6">
                     <header><h2 className="text-2xl font-bold text-slate-800">Suscripciones Generadas</h2><p className="text-slate-500">Control de renovaciones basado en caja.</p></header>
@@ -1672,20 +1600,22 @@ function doGet(e) {
             if(notification) { const timer = setTimeout(() => setNotification(null), 4000); return () => clearTimeout(timer); }
           }, [notification]);
 
-          const NavItem = ({ id, icon: Icon, label }) => (
+          const NavItem = ({ id, icon: Icon, label, alert }) => (
              <button 
                 onClick={() => setActiveModule(id)} 
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all mb-1 ${activeModule === id ? 'bg-blue-600 text-white shadow-md font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all mb-1 ${activeModule === id ? 'bg-blue-600 text-white shadow-md font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
              >
-                <Icon size={18} className={activeModule === id ? 'text-blue-200' : ''} />
-                <span>{label}</span>
+                <div className="flex items-center gap-3">
+                    <Icon size={18} className={activeModule === id ? 'text-blue-200' : ''} />
+                    <span>{label}</span>
+                </div>
+                {alert && <div className="w-2 h-2 rounded-full bg-rose-500"></div>}
              </button>
           );
 
           return (
             <div className="flex h-screen w-full bg-slate-50 overflow-hidden text-slate-800 font-sans">
               
-              {/* Notificaciones Globales */}
               {notification && (
                 <div className={`fixed top-4 right-4 z-[100] bg-white border-l-4 ${notification.type === 'error' ? 'border-rose-500' : 'border-emerald-500'} shadow-xl rounded-r-lg p-4 flex items-center gap-3 animate-fade-in`}>
                   {notification.type === 'error' ? <AlertCircle className="text-rose-500" size={20} /> : <CheckCircle2 className="text-emerald-500" size={20} />}
@@ -1693,7 +1623,6 @@ function doGet(e) {
                 </div>
               )}
 
-              {/* Sidebar Navegación Maestra */}
               <aside className={`bg-slate-950 flex flex-col flex-shrink-0 transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-20'} z-50`}>
                  <div className="p-5 flex items-center justify-between border-b border-slate-800">
                     {sidebarOpen && <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-2"><Zap className="text-amber-400 fill-amber-400" size={20}/> Suite 360</h1>}
@@ -1701,11 +1630,10 @@ function doGet(e) {
                  </div>
                  
                  <div className="flex-1 overflow-y-auto hide-scroll p-3 space-y-6 mt-2">
-                    {/* Grupo Finanzas */}
                     <div>
-                       {sidebarOpen && <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2 ml-2">Finanzas</p>}
-                       <NavItem id="finance-dashboard" icon={LayoutDashboard} label={sidebarOpen ? "Dashboard" : ""} />
-                       <NavItem id="finance-saas" icon={Layers} label={sidebarOpen ? "Métricas SaaS" : ""} />
+                       {sidebarOpen && <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-2 ml-2">Módulos</p>}
+                       <NavItem id="finance-dashboard" icon={LayoutDashboard} label={sidebarOpen ? "Finanzas" : ""} />
+                       <NavItem id="finance-saas" icon={Layers} label={sidebarOpen ? "Métricas SaaS" : ""} alert={true} />
                        <NavItem id="finance-cashflow" icon={Wallet} label={sidebarOpen ? "Flujo de Caja" : ""} />
                        <NavItem id="finance-subscriptions" icon={ShieldCheck} label={sidebarOpen ? "Suscripciones" : ""} />
                        <NavItem id="finance-settings" icon={Settings} label={sidebarOpen ? "Configuración" : ""} />
@@ -1713,14 +1641,10 @@ function doGet(e) {
                  </div>
               </aside>
 
-              {/* Área Principal Contenido */}
               <main className="flex-1 h-screen overflow-y-auto p-4 md:p-8 bg-slate-50/50">
-                 
-                 {/* Módulo de Finanzas */}
                  <div className={activeModule.startsWith('finance') ? 'block' : 'hidden'}>
                      <FinanceModule activeSubTab={activeModule.replace('finance-', '')} setNotification={setNotification} cashFlow={cashFlow} setCashFlow={setCashFlow} />
                  </div>
-
               </main>
             </div>
           );
@@ -1729,7 +1653,6 @@ function doGet(e) {
         const rootElement = document.getElementById('root');
         const root = createRoot(rootElement);
         root.render(<App />);
-
     </script>
 </body>
 </html>
