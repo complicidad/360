@@ -389,7 +389,6 @@ function doGet(e) {
           const [scriptUrl, setScriptUrl] = useState('');
           const [tempScriptUrl, setTempScriptUrl] = useState('');
           
-          // ESTADO PARA EL DETALLE DE COHORTES (PANEL INLINE EN LUGAR DE POPUP)
           const [activeCohortDetails, setActiveCohortDetails] = useState(null);
 
           const [filterMonth, setFilterMonth] = useState(() => {
@@ -404,7 +403,7 @@ function doGet(e) {
           const [subSearch, setSubSearch] = useState('');
           const [subFilter, setSubFilter] = useState('ALL');
 
-          useEffect(() => { setActiveFilter(null); }, [filterMonth]);
+          useEffect(() => { setActiveFilter(null); setActiveCohortDetails(null); }, [filterMonth, activeSubTab]);
           useEffect(() => { setCurrentPage(1); }, [cashFlowSearch, cashFlowTypeFilter]);
 
           const showMessage = (msg, type = 'success') => setNotification({ msg, type });
@@ -631,7 +630,6 @@ function doGet(e) {
             today.setHours(0,0,0,0);
             const todayMs = today.getTime(); 
 
-            // CÁLCULO DEL WATERFALL CORREGIDO (Sin Falsos Churns ni Falsos Nuevos)
             for (let i = 0; i < 12; i++) {
                 const prevEOM = new Date(targetYear, i, 0, 23, 59, 59).getTime(); 
                 const currEOM = new Date(targetYear, i + 1, 0, 23, 59, 59).getTime(); 
@@ -645,11 +643,9 @@ function doGet(e) {
                     
                     const maxEnd = Math.max(...clientPeriods[client].map(p => p.endMs));
                     
-                    // REGLA: Si la fecha máxima de vencimiento aún NO ha pasado hoy, 
-                    // NO cuenta como Churn ni altera la proyección futura del MRR.
                     if (pMrr > 0 && cMrr === 0) {
                         if (currEOM >= todayMs && maxEnd >= todayMs) {
-                            cMrr = pMrr; // Se mantiene la proyección plana
+                            cMrr = pMrr;
                         }
                     }
                     
@@ -661,15 +657,14 @@ function doGet(e) {
                     
                     if (pMrr === 0 && cMrr > 0) {
                         const firstTime = firstSeenSaas[client];
-                        // Solo es "Nuevo" si su primera aparición absoluta es en este mes
                         if (firstTime > prevEOM && firstTime <= currEOM) {
                             newMrr += cMrr;
                         } else {
-                            reactivatedMrr += cMrr; // Si ya había estado antes, es Reactivado
+                            reactivatedMrr += cMrr; 
                         }
                     }
                     else if (pMrr > 0 && cMrr === 0) { 
-                        churnMrr -= pMrr; // Churn Real
+                        churnMrr -= pMrr; 
                         churnedUsers++; 
                     } 
                     else if (cMrr > pMrr) { expMrr += (cMrr - pMrr); }
@@ -694,7 +689,6 @@ function doGet(e) {
                 }
             }
 
-            // COHORTES CON INFORMACIÓN DETALLADA INLINE Y BOTÓN WHATSAPP
             const userFirstMonth = {}; 
             Object.keys(clientPeriods).forEach(client => {
                  const firstPeriodMs = Math.min(...clientPeriods[client].map(p => p.startMs));
@@ -735,27 +729,44 @@ function doGet(e) {
                     }
                 }
 
-                // Generar objetos detallados para el Panel Inline interactivo
                 const enrichedUsers = cohortGroups[ym].users.map(client => {
-                    const isActiveNow = getMrrAtDate(client, todayMs) > 0;
-                    let statusText = 'Activo';
+                    const maxEndMs = Math.max(...clientPeriods[client].map(p => p.endMs));
+                    const isActiveNow = maxEndMs >= todayMs;
                     
-                    if (!isActiveNow) {
-                        const maxEndMs = Math.max(...clientPeriods[client].map(p => p.endMs));
+                    const diffTime = maxEndMs - todayMs;
+                    const remainingDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    let statusText = '';
+                    let statusLevel = 0; 
+                    
+                    if (isActiveNow) {
+                        if (remainingDays <= 5) {
+                            statusText = `Por Vencer (${remainingDays}d)`;
+                            statusLevel = 1; 
+                        } else {
+                            statusText = 'Activo';
+                            statusLevel = 0; 
+                        }
+                    } else {
                         let monthDiff = Math.floor((maxEndMs - cohortStartMs) / (1000 * 60 * 60 * 24 * 30.44));
                         statusText = `Baja (Mes ${Math.max(0, monthDiff)})`;
+                        statusLevel = 2; 
                     }
                     
-                    // Extraer posible número telefónico para WhatsApp (Busca 9 digitos, o codigos de pais)
+                    const endD = new Date(maxEndMs);
+                    const endDateStr = `${endD.getDate().toString().padStart(2, '0')}/${(endD.getMonth()+1).toString().padStart(2, '0')}/${endD.getFullYear()}`;
+                    
                     let phone = null;
                     const match9 = client.match(/\b9\d{8}\b/);
                     const matchInt = client.match(/\+?\d{11,14}\b/);
                     
-                    if (match9) phone = '51' + match9[0]; // Asume Perú
+                    if (match9) phone = '51' + match9[0];
                     else if (matchInt) phone = matchInt[0].replace('+', '');
 
-                    return { name: client, isActiveNow, statusText, phone };
+                    return { name: client, isActiveNow, statusText, statusLevel, phone, maxEndMs, endDateStr };
                 });
+
+                enrichedUsers.sort((a, b) => a.maxEndMs - b.maxEndMs);
 
                 return { 
                     label: `${monthsNames[cMonth]} ${cYear}`, 
@@ -779,6 +790,7 @@ function doGet(e) {
 
             const userPeriods = {};
             const firstSeen = {};
+
             const monthlySaasRev = Array(12).fill(0);
             const monthlyNet = Array(12).fill(0);
 
@@ -792,7 +804,9 @@ function doGet(e) {
                     if (entryDate.getFullYear() === targetYear) {
                         const eMonth = entryDate.getMonth();
                         monthlyNet[eMonth] += (inc - exp);
-                        if (inc > 0 && isSaas) monthlySaasRev[eMonth] += inc;
+                        if (inc > 0 && isSaas) {
+                            monthlySaasRev[eMonth] += inc;
+                        }
                     }
                 }
 
@@ -812,10 +826,13 @@ function doGet(e) {
                         endDateObj.setMonth(endDateObj.getMonth() + months);
                         const end = endDateObj.getTime();
 
-                        if (!firstSeen[client] || start < firstSeen[client]) firstSeen[client] = start;
+                        if (!firstSeen[client] || start < firstSeen[client]) {
+                            firstSeen[client] = start;
+                        }
+
                         if (!userPeriods[client]) userPeriods[client] = [];
-                        
                         const periods = userPeriods[client];
+
                         if (periods.length > 0) {
                             let lastP = periods[periods.length - 1];
                             if (start <= lastP.end) {
@@ -837,6 +854,7 @@ function doGet(e) {
                 let y = targetYear; let mo = m;
                 if (m === -1) { y = targetYear - 1; mo = 11; }
                 const mEnd = new Date(y, mo + 1, 0, 23, 59, 59).getTime();
+                
                 activeSets[m] = new Set();
                 Object.keys(userPeriods).forEach(client => {
                     const isActive = userPeriods[client].some(p => p.start <= mEnd && p.end >= mEnd);
@@ -849,7 +867,12 @@ function doGet(e) {
                 const prevActive = activeSets[i-1];
                 const currActive = activeSets[i];
 
-                let newUsers = 0, recurringUsers = 0, reactivatedUsers = 0, churnedUsers = 0, expiringUsers = 0; 
+                let newUsers = 0;
+                let recurringUsers = 0;
+                let reactivatedUsers = 0;
+                let churnedUsers = 0;
+                let expiringUsers = 0; 
+
                 const currentMonthStart = new Date(targetYear, i, 1).getTime();
                 const currentMonthEnd = new Date(targetYear, i + 1, 0, 23, 59, 59).getTime();
 
@@ -858,17 +881,23 @@ function doGet(e) {
                         recurringUsers++; 
                     } else {
                         const firstTime = firstSeen[u];
-                        if (firstTime >= currentMonthStart && firstTime <= currentMonthEnd) newUsers++;
-                        else reactivatedUsers++; 
+                        if (firstTime >= currentMonthStart && firstTime <= currentMonthEnd) {
+                            newUsers++;
+                        } else {
+                            reactivatedUsers++; 
+                        }
                     }
                 });
 
                 prevActive.forEach(u => {
                     if (!currActive.has(u)) {
                         const maxEnd = Math.max(...userPeriods[u].map(p => p.end));
-                        // SEPARACIÓN CORRECTA: Churn real (historico) vs Por Vencer
-                        if (currentMonthEnd < todayTime || maxEnd < todayTime) churnedUsers++;
-                        else expiringUsers++;
+                        
+                        if (currentMonthEnd < todayTime || maxEnd < todayTime) {
+                            churnedUsers++;
+                        } else {
+                            expiringUsers++;
+                        }
                     }
                 });
 
@@ -898,7 +927,9 @@ function doGet(e) {
                     const isSaas = String(entry.category || '').includes('SaaS') || (!entry.category && entry.voucher);
                     if (months > 0 && isSaas) {
                         const client = String(entry.client).trim().toLowerCase();
-                        if (!firstSeen[client]) firstSeen[client] = new Date(entry.date + 'T00:00:00');
+                        if (!firstSeen[client]) {
+                            firstSeen[client] = new Date(entry.date + 'T00:00:00');
+                        }
                     }
                 }
             });
@@ -911,15 +942,21 @@ function doGet(e) {
                 return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
             };
 
-            const weeksData = Array.from({ length: 52 }, (_, i) => ({ weekNumber: i + 1, label: `S${i + 1}`, count: 0 }));
+            const weeksData = Array.from({ length: 52 }, (_, i) => ({
+                weekNumber: i + 1,
+                label: `S${i + 1}`,
+                count: 0
+            }));
             
             Object.values(firstSeen).forEach(date => {
                 if (date.getFullYear() === targetYear) {
                     let w = getISOWeek(date);
-                    if (w > 52) w = 52; if (w < 1) w = 1;
+                    if (w > 52) w = 52; 
+                    if (w < 1) w = 1;
                     weeksData[w - 1].count++;
                 }
             });
+
             return weeksData;
           }, [sortedCashFlow, filterMonth]);
 
@@ -929,12 +966,16 @@ function doGet(e) {
             let pMonth = targetMonth - 1; let pYear = targetYear;
             if (pMonth < 0) { pMonth = 11; pYear -= 1; }
 
-            let globalIncome = 0, globalExpense = 0, prevMonthIncome = 0, prevMonthExpense = 0;
-            let monthlyIncome = 0, monthlyExpense = 0, monthlySaaSIncome = 0, monthlyOtherIncome = 0;
-            let monthlyCommissionExpense = 0, monthlyOtherExpense = 0;
+            let globalIncome = 0; let globalExpense = 0;
+            let prevMonthIncome = 0; let prevMonthExpense = 0;
+            let monthlyIncome = 0; let monthlyExpense = 0;
+            let monthlySaaSIncome = 0; let monthlyOtherIncome = 0;
+            let monthlyCommissionExpense = 0; let monthlyOtherExpense = 0;
             
             let monthlyMarketingExpense = 0;
-            let cashFlowMonthlyPlans = 0, cashFlowAnnualPlans = 0, cashFlowOtherPlans = 0;
+            let cashFlowMonthlyPlans = 0;
+            let cashFlowAnnualPlans = 0;
+            let cashFlowOtherPlans = 0;
 
             sortedCashFlow.forEach(item => {
               const inc = Number(item.income) || 0; const exp = Number(item.expense) || 0;
@@ -950,6 +991,7 @@ function doGet(e) {
                   if (exp > 0) {
                      if (categoryStr.toLowerCase().includes('comision') || categoryStr.toLowerCase().includes('comisión')) monthlyCommissionExpense += exp;
                      else monthlyOtherExpense += exp;
+                     
                      if (categoryStr === 'Marketing y Publicidad') monthlyMarketingExpense += exp;
                   }
 
@@ -962,7 +1004,10 @@ function doGet(e) {
                         if (m >= 12) cashFlowAnnualPlans += inc;
                         else if (m === 1) cashFlowMonthlyPlans += inc;
                         else cashFlowOtherPlans += inc;
-                    } else monthlyOtherIncome += inc;
+                    }
+                    else {
+                        monthlyOtherIncome += inc;
+                    }
                   }
                 }
                 if (itemMonth === pMonth && itemYear === pYear) {
@@ -1037,7 +1082,6 @@ function doGet(e) {
               
               <div className="animate-fade-in max-w-7xl mx-auto space-y-6">
                 
-                {}
                 {activeSubTab === 'dashboard' && (
                   <div className="space-y-6">
                     <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1057,7 +1101,7 @@ function doGet(e) {
                       </div>
                     </header>
 
-                    {/* KPIs Finanzas */}
+                    {/* KPIs Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="bg-slate-900 p-5 rounded-2xl shadow-sm border border-slate-800 flex flex-col justify-center hover:shadow-md transition-shadow relative overflow-hidden lg:col-span-2">
                         <div className="flex items-center gap-4">
@@ -1102,7 +1146,7 @@ function doGet(e) {
                       </div>
                     </div>
 
-                    {/* Tabla de Detalle KPI Inline */}
+                    {/* Tabla de Detalle al hacer Clic en un KPI */}
                     {activeFilter && (
                       <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-6 animate-fade-in">
                         <div className="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
@@ -1253,7 +1297,7 @@ function doGet(e) {
                   </div>
                 )}
 
-                {}
+                {/* --- MÓDULO SAAS --- */}
                 {activeSubTab === 'saas' && (
                   <div className="space-y-6 animate-fade-in-up">
                     <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1267,6 +1311,7 @@ function doGet(e) {
                       </div>
                     </header>
 
+                    {/* KPIs SaaS */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <MetricCard title="MRR (Ingreso Recurrente)" value={`S/ ${saasMetrics.currentMonthMRR.toFixed(2)}`} subtext="Valor mensual de tus suscripciones activas." icon={Activity} color="emerald" />
                         <MetricCard title="ARPU (Promedio x Cliente)" value={`S/ ${saasMetrics.currentMonthARPU.toFixed(2)}`} subtext="Ingreso mensual promedio que te deja cada usuario." icon={Users} color="blue" />
@@ -1383,21 +1428,37 @@ function doGet(e) {
                                     <button onClick={() => setActiveCohortDetails(null)} className="text-slate-400 hover:text-slate-600 p-1 bg-white rounded-md transition-colors shadow-sm"><X size={14}/></button>
                                 </div>
                                 <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto">
-                                    {activeCohortDetails.users.map((u, i) => (
-                                        <div key={i} className={`flex flex-col gap-2 bg-white p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow ${u.isActiveNow ? 'border-emerald-200' : 'border-rose-200'}`}>
+                                    {activeCohortDetails.users.map((u, i) => {
+                                        let borderClass = 'border-emerald-200';
+                                        let badgeClass = 'bg-emerald-100 text-emerald-700';
+                                        if (u.statusLevel === 1) {
+                                            borderClass = 'border-amber-200';
+                                            badgeClass = 'bg-amber-100 text-amber-700';
+                                        } else if (u.statusLevel === 2) {
+                                            borderClass = 'border-rose-200';
+                                            badgeClass = 'bg-rose-100 text-rose-700';
+                                        }
+
+                                        return (
+                                        <div key={i} className={`flex flex-col gap-2 bg-white p-3 border rounded-lg shadow-sm hover:shadow-md transition-shadow ${borderClass}`}>
                                             <div className="flex justify-between items-start">
-                                                <span className="text-sm font-bold text-slate-700 truncate pr-2" title={u.name}>{u.name}</span>
-                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${u.isActiveNow ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                                <div className="flex flex-col overflow-hidden pr-2">
+                                                    <span className="text-sm font-bold text-slate-700 truncate" title={u.name}>{u.name}</span>
+                                                    <span className="text-[10px] text-slate-500 font-medium mt-0.5 flex items-center gap-1">
+                                                        <Clock size={10}/> Vence: {u.endDateStr}
+                                                    </span>
+                                                </div>
+                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${badgeClass}`}>
                                                     {u.statusText}
                                                 </span>
                                             </div>
                                             {u.phone && (
                                                 <a href={`https://wa.me/${u.phone}?text=Hola,%20quería%20contactarte%20sobre%20tu%20suscripción%20al%20sistema...`} target="_blank" rel="noreferrer" className="mt-1 flex items-center justify-center gap-1.5 w-full py-1.5 bg-[#25D366]/10 text-[#075E54] hover:bg-[#25D366]/20 rounded-md transition-colors text-xs font-bold">
-                                                    <MessageCircle size={14} /> Contactar por WhatsApp
+                                                    <MessageCircle size={14} /> Contactar
                                                 </a>
                                             )}
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
                             </div>
                          )}
@@ -1407,7 +1468,7 @@ function doGet(e) {
                   </div>
                 )}
 
-                {}
+                {/* Módulo Original de Flujo de Caja (Actualizado con Paginación) */}
                 {activeSubTab === 'cashflow' && (
                   <div className="space-y-6">
                     <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1481,6 +1542,7 @@ function doGet(e) {
                   </div>
                 )}
 
+                {}
                 {activeSubTab === 'subscriptions' && (
                   <div className="space-y-6">
                     <header><h2 className="text-2xl font-bold text-slate-800">Suscripciones Generadas</h2><p className="text-slate-500">Control de renovaciones basado en caja.</p></header>
