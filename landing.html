@@ -1,1191 +1,567 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Latam5S | Haz que tu equipo procese más envíos</title>
-
-    <meta
-        name="description"
-        content="Latam5S organiza tus envíos en una sola plataforma para que tu equipo procese más envíos, en menos tiempo."
-    >
-
-    <script src="https://cdn.tailwindcss.com"></script>
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Latam5S — Procesa más envíos, en menos tiempo</title>
     <style>
-        html {
-            scroll-behavior: smooth;
+        :root {
+            --bg: #fbfaf7;
+            --white: #fff;
+            --text: #171717;
+            --muted: #686868;
+            --line: #e7e4dd;
+            /* Azul verdoso (Teal) como color de acento principal */
+            --accent: #14B8A6; 
+            --accent-glow: rgba(20, 184, 166, 0.2);
+            --dark: #0B0F19; /* Fondo oscuro refinado */
+            --dark-card: #151C2C;
+            --green: #32a66a;
+            --max: 1160px;
         }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { 
+            margin: 0; 
+            background: var(--bg); 
+            color: var(--text); 
+            font: 16px/1.5 Inter, system-ui, -apple-system, sans-serif; 
+        }
+        a { text-decoration: none; color: inherit; }
+        .wrap { width: min(var(--max), calc(100% - 40px)); margin: auto; }
+        
+        .btn { 
+            display: inline-flex; align-items: center; justify-content: center; 
+            min-height: 46px; padding: 0 24px; border-radius: 99px; 
+            font-weight: 800; font-size: 15px; border: 1px solid var(--line); 
+            background: #fff; transition: all 0.2s;
+        }
+        .primary { 
+            background: var(--accent); border-color: var(--accent); color: #fff; 
+            box-shadow: 0 8px 20px var(--accent-glow);
+        }
+        .primary:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        .dark { background: var(--dark); border-color: var(--dark); color: #fff; }
+        
+        nav { 
+            position: sticky; top: 0; z-index: 20; 
+            background: #fbfaf7e8; backdrop-filter: blur(12px); 
+            border-bottom: 1px solid var(--line); 
+        }
+        .nav { height: 72px; display: flex; align-items: center; justify-content: space-between; }
+        .logo { font-size: 24px; font-weight: 900; letter-spacing: -0.5px;}
+        .logo b { color: var(--accent); }
+        .links { display: flex; gap: 28px; font-size: 14px; font-weight: 500; color: #555; }
+        .actions { display: flex; gap: 10px; }
+        
+        section { padding: 100px 0; }
+        .hero { padding: 84px 0 72px; position: relative; overflow: hidden; }
+        .heroGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; position: relative; z-index: 2; }
+        
+        .eyebrow { 
+            display: inline-flex; padding: 7px 14px; border: 1px solid var(--line); 
+            border-radius: 999px; background: #fff; font-size: 12px; font-weight: 800; 
+            color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        
+        h1 { font-size: clamp(46px, 6vw, 72px); line-height: 1.05; letter-spacing: -3px; margin: 24px 0; font-weight: 900;}
+        h2 { font-size: clamp(34px, 4vw, 54px); line-height: 1.1; letter-spacing: -2px; margin: 0 0 16px; font-weight: 800;}
+        h3 { margin: 0 0 9px; font-size: 22px; font-weight: 800;}
+        
+        .lead { font-size: 18px; color: var(--muted); max-width: 680px; }
+        .heroCopy { font-size: 20px; color: var(--muted); max-width: 600px; line-height: 1.6;}
+        .heroActions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 32px; }
+        .micro { font-size: 13px; color: #777; margin-top: 18px; font-weight: 500;}
+        
+        /* Product Mockup */
+        .product { 
+            background: var(--dark); padding: 16px; border-radius: 32px; 
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15); transform: perspective(1000px) rotateY(-5deg) rotateX(2deg);
+            border: 1px solid var(--line);
+        }
+        .browser { background: #fff; border-radius: 20px; overflow: hidden; }
+        .top { height: 40px; background: #f8f9fa; padding: 0 14px; display: flex; gap: 6px; align-items: center; border-bottom: 1px solid var(--line);}
+        .dot { width: 10px; height: 10px; border-radius: 50%; background: #e2e8f0; }
+        .dot:nth-child(1){ background: #ff5f56;} .dot:nth-child(2){ background: #ffbd2e;} .dot:nth-child(3){ background: #27c93f;}
+        .screen { padding: 24px; background: #f8fafc; }
+        .dash { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: 800; color: #1e293b;}
+        .mini { background: var(--accent-glow); color: var(--accent); padding: 7px 12px; border-radius: 8px; font-size: 11px; }
+        
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+        .stat, .orders { border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .stat small { display: block; color: #64748b; font-size: 10px; text-transform: uppercase; font-weight: 800; margin-bottom: 4px;}
+        .stat strong { font-size: 24px; font-weight: 900; color: #0f172a;}
+        
+        .orders { padding: 0; overflow: hidden; }
+        .order { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; padding: 14px 16px; border-bottom: 1px solid #e2e8f0; font-size: 12px; align-items: center;}
+        .order:last-child { border: 0; }
+        .order b { color: #334155; font-weight: 700;}
+        .order span:last-child { color: #64748b; font-weight: 500; }
+        .pill { justify-self: start; padding: 4px 10px; border-radius: 99px; font-size: 10px; font-weight: 800; }
+        .p { background: #fef3c7; color: #b45309; }
+        .r { background: #f1f5f9; color: #475569; }
+        .s { background: #dcfce7; color: #15803d; }
+        
+        /* Dark Section */
+        .darkSec { background: var(--dark); color: #f8fafc; border-top: 1px solid #1e293b; border-bottom: 1px solid #1e293b;}
+        .darkSec .lead { color: #94a3b8; }
+        .grid2 { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 64px; align-items: center; }
+        .kicker { font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 900; color: var(--accent); margin-bottom: 16px; display: block;}
+        
+        .problemList { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 32px; }
+        .problem { padding: 16px 20px; background: var(--dark-card); border: 1px solid #2A344A; border-radius: 16px; font-weight: 600; font-size: 14px; color: #e2e8f0;}
+        
+        /* Gráfica Dinámica (Caos vs Control con Ejes) */
+        .time { background: var(--dark-card); border: 1px solid #2A344A; border-radius: 32px; padding: 40px; position: relative;}
+        .chart-container { position: relative; width: 100%; height: 280px; margin-top: 30px; padding-left: 20px; padding-bottom: 20px;}
+        
+        .y-axis-label { position: absolute; left: -25px; top: 40%; transform: translateY(-50%) rotate(-90deg); font-size: 12px; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;}
+        .x-axis-label { position: absolute; bottom: -10px; left: 55%; transform: translateX(-50%); font-size: 12px; color: #94a3b8; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;}
+        
+        .chart-line { stroke-dasharray: 600; stroke-dashoffset: 600; transition: stroke-dashoffset 2.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .chart-line.animated { stroke-dashoffset: 0; }
+        .path-control { transition-delay: 0.8s; } 
+        
+        .chart-tooltip { position: absolute; padding: 6px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; background: var(--dark); border: 1px solid #2A344A; z-index: 10; opacity: 0; transform: translateY(10px); transition: all 0.5s ease 1s;}
+        .chart-tooltip.animated { opacity: 1; transform: translateY(0); }
+        .tooltip-chaos { top: -15px; right: 0; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.1);}
+        .tooltip-control { bottom: 70px; right: 20px; color: var(--accent); border-color: var(--accent-glow); box-shadow: 0 4px 15px var(--accent-glow);}
+        
+        .chart-footer { margin-top: 40px; font-size: 15px; font-weight: 600; color: #94a3b8; text-align: center; border-top: 1px dashed #1e293b; padding-top: 24px;}
+        .chart-footer b { color: #f8fafc; }
 
-        body {
-            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        /* Steps */
+        .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 48px; }
+        .card { background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 32px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);}
+        .num { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: #f8fafc; font-weight: 900; font-size: 18px; margin-bottom: 24px; border: 1px solid var(--line); color: var(--accent);}
+        
+        .showcase { background: #f8fafc; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);}
+        .mock { background: #fff; border-radius: 32px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.08); border: 1px solid var(--line); position: relative;}
+        .mock-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--dark); color: #fff; font-size: 10px; font-weight: 900; padding: 6px 14px; border-radius: 99px; text-transform: uppercase; letter-spacing: 1px;}
+        .form { border: 1px solid #e2e8f0; border-radius: 20px; padding: 32px 24px; background: #fff;}
+        .field { margin: 0 0 16px; text-align: left;}
+        .field label { display: block; font-size: 11px; font-weight: 800; margin-bottom: 8px; color: #475569; text-transform: uppercase;}
+        .input { height: 46px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 0 14px; color: #94a3b8; display: flex; align-items: center; font-size: 14px; background: #f8fafc;}
+        .submit { width: 100%; height: 50px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font-weight: 900; font-size: 15px; margin-top: 10px; cursor: pointer;}
+        
+        .features { display: grid; gap: 16px; margin-top: 32px; }
+        .feature { display: flex; gap: 16px; align-items: flex-start;}
+        .check { width: 28px; height: 28px; flex: none; border-radius: 50%; background: var(--accent-glow); color: var(--accent); display: grid; place-items: center; font-weight: 900; font-size: 12px;}
+        .feature strong { display: block; font-size: 18px; color: var(--text); margin-bottom: 4px;}
+        .feature span { color: var(--muted); font-size: 15px; line-height: 1.5;}
+        
+        /* Compare Section Update */
+        .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 48px; max-width: 1000px; margin-left: auto; margin-right: auto;}
+        .before { background: #f8fafc; border-color: #e2e8f0; }
+        .after { border: 2px solid var(--accent); box-shadow: 0 12px 30px var(--accent-glow); position: relative;}
+        .list { display: grid; gap: 18px; margin-top: 24px;}
+        .list div { display: flex; gap: 14px; font-size: 16px; font-weight: 500; color: #334155; align-items: center;}
+        .x { color: #ef4444; font-weight: 900; font-size: 18px; width: 20px; text-align: center;}
+        .ok { color: var(--accent); font-weight: 900; font-size: 18px; width: 20px; text-align: center;}
+        
+        .plans { background: #fff; }
+        .planGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 900px; margin: 48px auto 0;}
+        .plan { position: relative; padding: 40px;}
+        .pro { border: 2px solid var(--accent); box-shadow: 0 20px 40px var(--accent-glow); background: var(--dark); color: #fff;}
+        .pro h3 { color: #f8fafc; }
+        .pro p { color: #94a3b8; }
+        .pro li { color: #e2e8f0; }
+        .badge { position: absolute; right: 24px; top: -14px; background: var(--accent); color: #fff; border-radius: 99px; padding: 6px 14px; font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;}
+        .price { font-size: 54px; font-weight: 900; letter-spacing: -2px; margin: 16px 0 8px; }
+        .price small { font-size: 15px; color: #94a3b8; letter-spacing: 0; font-weight: 600;}
+        .plan p { color: var(--muted); font-size: 15px; padding-bottom: 24px; border-bottom: 1px solid var(--line); margin-bottom: 24px;}
+        .pro p { border-color: #1e293b; }
+        .plan ul { list-style: none; padding: 0; display: grid; gap: 14px; margin: 0 0 32px;}
+        .plan li { display: flex; align-items: center; font-size: 15px; font-weight: 500;}
+        .plan li:before { content: '✓'; color: var(--accent); font-weight: 900; margin-right: 12px; font-size: 16px;}
+        .plan .btn { width: 100%; height: 54px; }
+        
+        .socialNum { font-size: clamp(48px, 6vw, 84px); font-weight: 900; letter-spacing: -4px; margin: 0; color: var(--dark);}
+        .testimonial { max-width: 800px; margin: 40px auto 0; background: #fff; border: 1px solid var(--line); border-radius: 32px; padding: 40px; text-align: left; position: relative;}
+        .quote { font-size: 24px; font-weight: 500; line-height: 1.5; color: #0f172a; margin-bottom: 24px;}
+        .person { color: #64748b; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;}
+        
+        .faq { max-width: 800px; margin: 48px auto 0;}
+        .faq details { border-bottom: 1px solid var(--line); padding: 24px 0; }
+        .faq summary { cursor: pointer; font-weight: 800; font-size: 18px; list-style: none; display: flex; justify-content: space-between; align-items: center; color: #0f172a;}
+        .faq summary::-webkit-details-marker { display: none; }
+        .faq summary:after { content: '+'; color: var(--accent); font-size: 28px; font-weight: 400;}
+        .faq details[open] summary:after { content: '−'; }
+        .faq p { color: var(--muted); margin-top: 16px; font-size: 16px; line-height: 1.6;}
+        
+        .final { background: var(--dark); color: #fff; text-align: center; }
+        .final p { max-width: 600px; margin: 0 auto 32px; color: #94a3b8; font-size: 20px; line-height: 1.5;}
+        
+        footer { background: #070a11; border-top: 1px solid #1e293b; color: #64748b; padding: 32px 0; font-size: 14px; font-weight: 500;}
+        .foot { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; align-items: center;}
+        .footlinks { display: flex; gap: 24px; }
+        .footlinks a:hover { color: #fff; }
+        
+        @media(max-width: 900px){
+            .links { display: none; }
+            .heroGrid, .grid2, .compare, .planGrid { grid-template-columns: 1fr; }
+            .steps { grid-template-columns: 1fr; }
+            .product { transform: none; }
+            .hero { padding-top: 40px; }
+            .showcase { padding: 80px 0; }
         }
-
-        .gradient-text {
-            background: linear-gradient(90deg, #2dd4bf, #60a5fa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        @media(max-width: 600px){
+            .wrap { width: calc(100% - 32px); }
+            .actions .btn:first-child { display: none; }
+            .heroActions { display: grid; }
+            .heroActions .btn { width: 100%; }
+            .problemList { grid-template-columns: 1fr; }
+            .stats { grid-template-columns: 1fr 1fr; }
+            .stats .stat:last-child { grid-column: span 2; }
+            .order { grid-template-columns: 1fr 1fr; }
+            .order span:last-child { display: none; }
+            section { padding: 80px 0; }
         }
-
-        .hero-glow {
-            background:
-                radial-gradient(circle at 50% 10%, rgba(20,184,166,.12), transparent 40%),
-                radial-gradient(circle at 80% 40%, rgba(59,130,246,.08), transparent 40%);
-        }
-
-        .soft-grid {
-            background-image:
-                linear-gradient(rgba(148,163,184,.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(148,163,184,.05) 1px, transparent 1px);
-            background-size: 40px 40px;
-        }
-
-        .glass-panel {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        /* Marquee Carousel Animations */
-        @keyframes marquee {
-            0% { transform: translateX(0%); }
-            100% { transform: translateX(-50%); }
-        }
-
-        .animate-marquee {
-            display: flex;
-            width: max-content;
-            animation: marquee 30s linear infinite;
-        }
-
-        .mask-gradient {
-            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
-            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
-        }
-
-        /* Float animation for hero conceptual visual */
-        @keyframes float-slow {
-            0%, 100% { transform: translateY(0) translateX(0); }
-            50% { transform: translateY(-10px) translateX(5px); }
-        }
-        .animate-float-slow { animation: float-slow 6s ease-in-out infinite; }
     </style>
 </head>
-
-<body class="bg-slate-950 text-slate-300">
-
-<!-- ===================================================== -->
-<!-- HEADER FIJO -->
-<!-- ===================================================== -->
-
-<header class="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md">
-
-    <nav class="max-w-7xl mx-auto px-5 py-4 flex items-center justify-between">
-
-        <!-- Logo -->
-        <a href="#" class="flex items-center gap-2">
-            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center text-white text-[10px] font-bold">
-                5S
+<body>
+    <nav>
+        <div class="wrap nav">
+            <a class="logo" href="#">Latam<b>5S</b></a>
+            <div class="links">
+                <a href="#como">Cómo funciona</a>
+                <a href="#funciones">Funciones</a>
+                <a href="#planes">Planes</a>
+                <a href="#faq">Preguntas</a>
             </div>
-            <span class="text-xl font-bold text-white tracking-tight">
-                Latam5S
-            </span>
-        </a>
-
-        <!-- Navegación -->
-        <div class="flex items-center gap-4 sm:gap-6">
-            <a href="#como-funciona" class="hidden sm:block text-sm font-medium text-slate-400 hover:text-white transition">
-                Cómo funciona
-            </a>
-            <a href="#planes" class="hidden sm:block text-sm font-medium text-slate-400 hover:text-white transition">
-                Planes
-            </a>
-            <a href="#planes" class="text-sm font-semibold bg-white text-slate-950 px-4 py-2 rounded-lg hover:bg-slate-100 transition shadow-sm">
-                Ver planes
-            </a>
+            <div class="actions">
+                <a class="btn" href="#planes">Ver planes</a>
+                <a class="btn primary" href="#demo">Probar formulario</a>
+            </div>
         </div>
-
     </nav>
 
-</header>
-
-
-<!-- ===================================================== -->
-<!-- 1. PORTADA -->
-<!-- ===================================================== -->
-
-<section class="relative overflow-hidden hero-glow min-h-[90vh] flex flex-col justify-center border-b border-slate-800/50">
-
-    <div class="absolute inset-0 soft-grid opacity-60"></div>
-
-    <div class="relative max-w-7xl mx-auto px-5 py-20 lg:py-24 grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-
-        <!-- Texto -->
-        <div class="text-center lg:text-left z-10">
-
-            <h1 class="text-4xl sm:text-6xl lg:text-[4rem] font-bold tracking-tight text-white leading-[1.05]">
-                Haz que tu equipo procese más envíos,
-                <br class="hidden sm:block">
-                <span class="gradient-text">en menos tiempo.</span>
-            </h1>
-
-            <p class="mt-6 text-lg sm:text-xl text-slate-400 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                Latam5S organiza tus envíos en una sola plataforma para que tu equipo deje de perder horas pidiendo datos, haciendo rótulos y registrando envíos uno por uno.
-            </p>
-
-            <div class="mt-10 flex flex-col sm:flex-row justify-center lg:justify-start gap-4">
-                <a href="#planes" class="px-8 py-4 rounded-xl bg-white text-slate-950 font-bold hover:bg-slate-100 transition shadow-lg shadow-white/10 text-center">
-                    Ver planes
-                </a>
-            </div>
-
-        </div>
-
-        <!-- Visual Conceptual (Velocidad + Orden) -->
-        <div class="relative h-[400px] w-full hidden sm:flex items-center justify-center">
-
-            <!-- Glowing core -->
-            <div class="absolute w-64 h-64 bg-teal-500/20 rounded-full blur-[80px]"></div>
-            <div class="absolute w-40 h-40 bg-blue-500/20 rounded-full blur-[60px] translate-x-20"></div>
-
-            <!-- Conceptual Flow -->
-            <div class="relative w-full max-w-md h-full flex flex-col justify-center gap-4">
-
-                <!-- Entrada desordenada (Múltiples pedidos) -->
-                <div class="absolute -left-10 top-1/4 animate-float-slow" style="animation-delay: 0s;">
-                    <div class="px-4 py-2 bg-slate-800/80 backdrop-blur rounded-lg border border-slate-700 shadow-xl flex gap-3 items-center opacity-70">
-                        <div class="w-2 h-2 rounded-full bg-slate-500"></div>
-                        <div class="w-16 h-1.5 bg-slate-600 rounded"></div>
-                    </div>
-                </div>
-                <div class="absolute left-0 top-1/2 animate-float-slow" style="animation-delay: 1s;">
-                    <div class="px-4 py-2 bg-slate-800/80 backdrop-blur rounded-lg border border-slate-700 shadow-xl flex gap-3 items-center opacity-80">
-                        <div class="w-2 h-2 rounded-full bg-slate-500"></div>
-                        <div class="w-20 h-1.5 bg-slate-600 rounded"></div>
-                    </div>
-                </div>
-
-                <!-- Embudo / Sistema Central (Latam5S) -->
-                <div class="relative z-10 mx-auto w-48 h-48 bg-slate-900 border border-teal-500/30 rounded-2xl shadow-[0_0_40px_rgba(20,184,166,0.15)] flex flex-col items-center justify-center gap-3">
-                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center text-white text-sm font-bold">5S</div>
-                    <div class="text-xs text-teal-400 font-semibold tracking-widest uppercase">Procesando</div>
-                    
-                    <!-- Simulación de procesamiento -->
-                    <div class="flex gap-1 mt-2">
-                        <div class="w-1 h-3 bg-teal-400/50 rounded-full animate-pulse"></div>
-                        <div class="w-1 h-3 bg-teal-400/80 rounded-full animate-pulse" style="animation-delay: 150ms"></div>
-                        <div class="w-1 h-3 bg-teal-400 rounded-full animate-pulse" style="animation-delay: 300ms"></div>
-                    </div>
-                </div>
-
-                <!-- Salida ordenada y rápida -->
-                <div class="absolute -right-4 top-1/3 animate-float-slow" style="animation-delay: 0.5s;">
-                    <div class="px-5 py-3 bg-teal-500/10 backdrop-blur rounded-lg border border-teal-500/30 shadow-xl flex gap-3 items-center">
-                        <div class="text-teal-400 text-lg">✓</div>
-                        <div>
-                            <div class="w-24 h-2 bg-teal-400/80 rounded mb-1.5"></div>
-                            <div class="w-16 h-1.5 bg-teal-400/40 rounded"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="absolute right-6 top-2/3 animate-float-slow" style="animation-delay: 1.5s;">
-                    <div class="px-5 py-3 bg-blue-500/10 backdrop-blur rounded-lg border border-blue-500/30 shadow-xl flex gap-3 items-center">
-                        <div class="text-blue-400 text-lg">✓</div>
-                        <div>
-                            <div class="w-20 h-2 bg-blue-400/80 rounded mb-1.5"></div>
-                            <div class="w-12 h-1.5 bg-blue-400/40 rounded"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Líneas de conexión -->
-                <svg class="absolute inset-0 w-full h-full -z-10 pointer-events-none" style="opacity: 0.3;">
-                    <path d="M 50 150 C 150 150, 150 200, 200 200" stroke="url(#grad)" stroke-width="2" fill="none" stroke-dasharray="4 4"/>
-                    <path d="M 280 200 C 350 200, 350 160, 400 160" stroke="url(#grad2)" stroke-width="2" fill="none" stroke-dasharray="4 4"/>
-                    <defs>
-                        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stop-color="#64748b" stop-opacity="0" />
-                            <stop offset="100%" stop-color="#2dd4bf" stop-opacity="1" />
-                        </linearGradient>
-                        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stop-color="#2dd4bf" stop-opacity="1" />
-                            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0" />
-                        </linearGradient>
-                    </defs>
-                </svg>
-
-            </div>
-        </div>
-    </div>
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 2. EL PROBLEMA -->
-<!-- ===================================================== -->
-
-<section class="max-w-7xl mx-auto px-5 py-24">
-
-    <div class="text-center max-w-3xl mx-auto">
-        <h2 class="text-3xl sm:text-4xl font-bold text-white">
-            Tu equipo pierde tiempo en tareas que se repiten con cada envío.
-        </h2>
-    </div>
-
-    <div class="grid md:grid-cols-3 gap-6 mt-16">
-
-        <!-- Bloque 1 -->
-        <div class="glass-panel rounded-2xl p-8 hover:bg-slate-900/80 transition duration-300">
-            <div class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl mb-6 shadow-inner">
-                💬
-            </div>
-            <h3 class="text-xl font-bold text-white mb-3">1. Datos</h3>
-            <p class="text-slate-400 font-medium mb-3">Tu equipo pide y corrige datos de envío todo el día.</p>
-            <p class="text-sm text-slate-500 leading-relaxed">Mensajes, datos incompletos, correcciones y búsquedas por chat antes de poder despachar.</p>
-        </div>
-
-        <!-- Bloque 2 -->
-        <div class="glass-panel rounded-2xl p-8 hover:bg-slate-900/80 transition duration-300">
-            <div class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl mb-6 shadow-inner">
-                🏷️
-            </div>
-            <h3 class="text-xl font-bold text-white mb-3">2. Rótulos</h3>
-            <p class="text-slate-400 font-medium mb-3">Tu equipo hace rótulos uno por uno.</p>
-            <p class="text-sm text-slate-500 leading-relaxed">Copiar, pegar o tipear los datos de cada envío manualmente vuelve lento el proceso operativo.</p>
-        </div>
-
-        <!-- Bloque 3 -->
-        <div class="glass-panel rounded-2xl p-8 hover:bg-slate-900/80 transition duration-300">
-            <div class="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-2xl mb-6 shadow-inner">
-                📈
-            </div>
-            <h3 class="text-xl font-bold text-white mb-3">3. Volumen</h3>
-            <p class="text-slate-400 font-medium mb-3">Cada vez hay más envíos que procesar.</p>
-            <p class="text-sm text-slate-500 leading-relaxed">El volumen de ventas crece, pero la capacidad operativa del equipo no crece al mismo ritmo.</p>
-        </div>
-
-    </div>
-
-    <div class="mt-14 text-center">
-        <a href="#transformacion" class="inline-flex items-center text-teal-400 font-semibold hover:text-teal-300 transition group">
-            Ver cómo cambia el proceso 
-            <span class="ml-2 group-hover:translate-x-1 transition-transform">→</span>
-        </a>
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 3. EL COSTO -->
-<!-- ===================================================== -->
-
-<section class="border-y border-slate-800/60 bg-slate-900/30">
-
-    <div class="max-w-6xl mx-auto px-5 py-24">
-        
-        <div class="text-center max-w-2xl mx-auto mb-16">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white">
-                Más envíos significan más horas de trabajo.
-            </h2>
-        </div>
-
-        <!-- Escalera Gráfica -->
-        <div class="flex flex-col md:flex-row items-end justify-center gap-4 sm:gap-8 h-[350px] md:h-[250px] max-w-4xl mx-auto px-4">
-            
-            <!-- Step 1 -->
-            <div class="w-full md:w-1/3 flex flex-row md:flex-col items-center md:items-stretch h-[25%] md:h-1/3 group">
-                <div class="w-1/2 md:w-full text-left md:text-center pr-4 md:pr-0 md:pb-4 opacity-70 group-hover:opacity-100 transition">
-                    <div class="text-2xl font-bold text-white">20 envíos</div>
-                    <div class="text-sm font-medium text-teal-400 mt-1">≈ 1 hora</div>
-                </div>
-                <div class="w-1/2 md:w-full h-full bg-slate-800 border-t border-x border-slate-700 rounded-r-lg md:rounded-r-none md:rounded-t-xl opacity-60"></div>
-            </div>
-
-            <!-- Step 2 -->
-            <div class="w-full md:w-1/3 flex flex-row md:flex-col items-center md:items-stretch h-[50%] md:h-2/3 group">
-                <div class="w-1/2 md:w-full text-left md:text-center pr-4 md:pr-0 md:pb-4 opacity-80 group-hover:opacity-100 transition">
-                    <div class="text-3xl font-bold text-white">50 envíos</div>
-                    <div class="text-base font-medium text-teal-400 mt-1">≈ 2.5 horas</div>
-                </div>
-                <div class="w-1/2 md:w-full h-full bg-slate-700 border-t border-x border-slate-600 rounded-r-lg md:rounded-r-none md:rounded-t-xl opacity-80"></div>
-            </div>
-
-            <!-- Step 3 -->
-            <div class="w-full md:w-1/3 flex flex-row md:flex-col items-center md:items-stretch h-[75%] md:h-full group">
-                <div class="w-1/2 md:w-full text-left md:text-center pr-4 md:pr-0 md:pb-4 group-hover:scale-105 transition duration-300">
-                    <div class="text-4xl font-bold text-white">100 envíos</div>
-                    <div class="text-lg font-bold text-teal-400 mt-1">≈ 5 horas</div>
-                </div>
-                <div class="w-1/2 md:w-full h-full bg-gradient-to-t from-slate-700 to-teal-900 border-t border-x border-teal-500/50 rounded-r-lg md:rounded-r-none md:rounded-t-xl relative overflow-hidden">
-                    <div class="absolute inset-0 bg-teal-400/10"></div>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="max-w-2xl mx-auto mt-12 text-center">
-            <p class="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-6">
-                *Ejemplo estimado: 1 min pedir/validar datos + 1 min rotular + 1 min registrar por envío.
-            </p>
-            <p class="text-xl text-slate-300 leading-relaxed font-medium">
-                Cuando el volumen sigue creciendo, necesitas más capacidad para procesarlo.
-            </p>
-            
-            <a href="#que-es" class="inline-block mt-10 px-6 py-3 border border-slate-700 rounded-lg text-white font-medium hover:bg-slate-800 transition">
-                Conoce una forma diferente de operar
-            </a>
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 4. QUÉ ES LATAM5S -->
-<!-- ===================================================== -->
-
-<section id="que-es" class="py-24 max-w-7xl mx-auto px-5">
-
-    <div class="text-center max-w-3xl mx-auto mb-16">
-        <h2 class="text-3xl sm:text-4xl font-bold text-white">
-            Un sistema para organizar tus envíos en una sola plataforma.
-        </h2>
-        <p class="mt-6 text-lg text-slate-400 leading-relaxed">
-            Latam5S ordena el proceso de tus envíos para que tu equipo pueda trabajar más rápido y con mayor control.
-        </p>
-    </div>
-
-    <!-- Node Diagram -->
-    <div class="relative w-full max-w-4xl mx-auto py-10">
-        
-        <!-- Líneas de fondo desktop -->
-        <div class="hidden md:block absolute top-1/2 left-0 w-full h-[1px] bg-slate-800 -translate-y-1/2"></div>
-        <div class="hidden md:block absolute top-0 left-1/2 w-[1px] h-full bg-slate-800 -translate-x-1/2"></div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-0 items-center justify-items-center relative z-10">
-            
-            <!-- Left nodes -->
-            <div class="flex flex-col gap-8 w-full max-w-[240px]">
-                <div class="glass-panel p-5 rounded-2xl text-center border-l-2 border-l-teal-500">
-                    <p class="text-sm font-semibold text-white">Tu cliente</p>
-                    <p class="text-xs text-slate-400 mt-1">Registra sus datos</p>
-                </div>
-                <div class="glass-panel p-5 rounded-2xl text-center border-l-2 border-l-blue-500">
-                    <p class="text-sm font-semibold text-white">Formulario</p>
-                    <p class="text-xs text-slate-400 mt-1">Captura exacta</p>
-                </div>
-            </div>
-
-            <!-- Center Core -->
-            <div class="w-40 h-40 rounded-full bg-slate-900 border border-slate-700 shadow-[0_0_50px_rgba(20,184,166,0.1)] flex flex-col items-center justify-center relative">
-                <!-- Outer ring pulse -->
-                <div class="absolute inset-0 rounded-full border border-teal-500/30 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]"></div>
-                
-                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-teal-400 to-blue-500 flex items-center justify-center text-white text-lg font-bold mb-2">
-                    5S
-                </div>
-                <span class="font-bold text-white tracking-wide">Latam5S</span>
-            </div>
-
-            <!-- Right nodes -->
-            <div class="flex flex-col gap-8 w-full max-w-[240px]">
-                <div class="glass-panel p-5 rounded-2xl text-center border-r-2 border-r-teal-500">
-                    <p class="text-sm font-semibold text-white">Tu equipo</p>
-                    <p class="text-xs text-slate-400 mt-1">Recibe info organizada</p>
-                </div>
-                <div class="glass-panel p-5 rounded-2xl text-center border-r-2 border-r-blue-500">
-                    <p class="text-sm font-semibold text-white">Tus envíos</p>
-                    <p class="text-xs text-slate-400 mt-1">Listos para despachar</p>
-                </div>
-            </div>
-
-        </div>
-
-    </div>
-
-    <div class="text-center mt-12 font-medium text-slate-300 text-lg">
-        Todo desde un solo lugar.
-    </div>
-
-    <div class="text-center mt-8">
-        <a href="#transformacion" class="inline-block px-6 py-3 border border-slate-700 rounded-lg text-white font-medium hover:bg-slate-800 transition">
-            Ver cómo funciona
-        </a>
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 5. TRANSFORMACIÓN -->
-<!-- ===================================================== -->
-
-<section id="transformacion" class="border-y border-slate-800/60 bg-slate-900/20 py-24">
-
-    <div class="max-w-7xl mx-auto px-5">
-        
-        <div class="text-center max-w-3xl mx-auto mb-16">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white">
-                Mismo proceso. Menos trabajo para tu equipo.
-            </h2>
-        </div>
-
-        <div class="grid lg:grid-cols-2 gap-12 lg:gap-6">
-            
-            <!-- ANTES (Proceso Manual) -->
-            <div class="border border-slate-800/80 bg-slate-950 rounded-3xl p-8 relative overflow-hidden opacity-60 hover:opacity-100 transition duration-500">
-                
-                <div class="absolute top-0 left-0 w-full h-1 bg-slate-800"></div>
-                <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-8">El proceso manual</h3>
-
-                <div class="flex flex-col gap-6 relative">
-                    <!-- Linea conectora vertical -->
-                    <div class="absolute left-[15px] top-4 bottom-4 w-px bg-slate-800"></div>
-
-                    <div class="flex gap-4 items-start relative z-10">
-                        <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-xs shrink-0 mt-1">1</div>
-                        <div>
-                            <p class="font-bold text-slate-300">Pedir datos por chat</p>
-                            <p class="text-sm text-slate-500 mt-1">Tiempo de espera y conversaciones largas.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 items-start relative z-10">
-                        <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-xs shrink-0 mt-1">2</div>
-                        <div>
-                            <p class="font-bold text-slate-300">Corregir datos</p>
-                            <p class="text-sm text-slate-500 mt-1">Agencia equivocada, falta de DNI o teléfono.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 items-start relative z-10">
-                        <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-xs shrink-0 mt-1">3</div>
-                        <div>
-                            <p class="font-bold text-slate-300">Buscar información</p>
-                            <p class="text-sm text-slate-500 mt-1">Revisar fotos de vouchers o chats anteriores.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 items-start relative z-10">
-                        <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-xs shrink-0 mt-1">4</div>
-                        <div>
-                            <p class="font-bold text-slate-300">Hacer rótulos 1x1</p>
-                            <p class="text-sm text-slate-500 mt-1">Copiar y pegar a mano cada etiqueta.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 items-start relative z-10">
-                        <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-xs shrink-0 mt-1">5</div>
-                        <div>
-                            <p class="font-bold text-slate-300">Registrar envíos 1x1</p>
-                            <p class="text-sm text-slate-500 mt-1">Ingresar pedidos manualmente a la agencia.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- DESPUÉS (Latam5S) -->
-            <div class="border border-teal-500/30 bg-slate-900 rounded-3xl p-8 relative shadow-[0_0_50px_rgba(20,184,166,0.05)]">
-                
-                <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-400 to-blue-500"></div>
-                <h3 class="text-sm font-bold text-teal-400 uppercase tracking-widest mb-8">Con Latam5S</h3>
-
-                <div class="flex flex-col gap-6 relative">
-                    <!-- Linea conectora vertical con gradiente -->
-                    <div class="absolute left-[15px] top-4 bottom-4 w-px bg-gradient-to-b from-teal-500/50 to-blue-500/50"></div>
-
-                    <div class="flex gap-4 items-start relative z-10">
-                        <div class="w-8 h-8 rounded-full bg-teal-500/20 border border-teal-500/50 text-teal-300 flex items-center justify-center text-xs font-bold shrink-0 mt-1">✓</div>
-                        <div class="w-full">
-                            <p class="font-bold text-white text-lg">Formulario</p>
-                            <!-- REEMPLAZAR CON CAPTURA REAL DE FORMULARIO SI SE DESEA -->
-                            <div class="mt-2 h-10 w-full max-w-[200px] bg-slate-950 border border-slate-800 rounded px-3 flex items-center">
-                                <div class="w-1/2 h-2 bg-slate-800 rounded"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 items-start relative z-10">
-                        <div class="w-8 h-8 rounded-full bg-teal-500/20 border border-teal-500/50 text-teal-300 flex items-center justify-center text-xs font-bold shrink-0 mt-1">✓</div>
-                        <div class="w-full">
-                            <p class="font-bold text-white text-lg">Datos estructurados</p>
-                            <p class="text-sm text-slate-400 mt-1">La información entra completa y exacta.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 items-start relative z-10">
-                        <div class="w-8 h-8 rounded-full bg-teal-500/20 border border-teal-500/50 text-teal-300 flex items-center justify-center text-xs font-bold shrink-0 mt-1">✓</div>
-                        <div class="w-full">
-                            <p class="font-bold text-white text-lg">Envíos organizados</p>
-                            <!-- REEMPLAZAR CON CAPTURA REAL DE DASHBOARD -->
-                            <div class="mt-2 h-12 w-full bg-slate-950 border border-slate-800 rounded p-2 flex flex-col justify-center gap-1.5">
-                                <div class="w-3/4 h-1.5 bg-slate-700 rounded"></div>
-                                <div class="w-1/2 h-1.5 bg-slate-800 rounded"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 items-start relative z-10">
-                        <div class="w-8 h-8 rounded-full bg-teal-500/20 border border-teal-500/50 text-teal-300 flex items-center justify-center text-xs font-bold shrink-0 mt-1">✓</div>
-                        <div class="w-full">
-                            <p class="font-bold text-white text-lg">Rótulos en 1 clic</p>
-                            <p class="text-sm text-slate-400 mt-1">Selecciona pedidos e imprime al instante.</p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 items-start relative z-10">
-                        <div class="w-8 h-8 rounded-full bg-teal-500/20 border border-teal-500/50 text-teal-300 flex items-center justify-center text-xs font-bold shrink-0 mt-1">✓</div>
-                        <div class="w-full">
-                            <p class="font-bold text-white text-lg">Carga masiva</p>
-                            <!-- REEMPLAZAR CON CAPTURA REAL DE EXCEL -->
-                            <div class="mt-2 h-8 w-full max-w-[150px] bg-green-900/20 border border-green-500/30 rounded flex items-center px-3 text-xs text-green-400 font-medium">
-                                Exportar Excel
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-
-        </div>
-
-        <div class="text-center mt-16">
-            <p class="text-xl font-medium text-slate-300 mb-8">Deja de repetir el mismo trabajo en cada envío.</p>
-            <a href="#planes" class="px-8 py-4 rounded-xl bg-white text-slate-950 font-bold hover:bg-slate-100 transition shadow-lg shadow-white/10">
-                Ver los planes
-            </a>
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 6. PRUEBA SOCIAL & MARQUEE -->
-<!-- ===================================================== -->
-
-<section class="py-24">
-
-    <div class="max-w-7xl mx-auto px-5">
-
-        <div class="text-center mb-12">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white">
-                Más negocios ya organizan sus envíos con Latam5S.
-            </h2>
-        </div>
-
-        <!-- Cifras y Marquee -->
-        <div class="max-w-5xl mx-auto">
-            
-            <p class="text-center text-slate-400 font-medium text-lg mb-8">
-                Ayudamos a más de <span class="text-white font-bold">500 marcas</span> a programar más de <span class="text-white font-bold">100 mil envíos</span>.
-            </p>
-
-            <!-- MARQUEE CAROUSEL -->
-            <div class="overflow-hidden mask-gradient py-6 bg-slate-900/30 rounded-2xl border border-slate-800/50">
-                
-                <div class="animate-marquee gap-12 sm:gap-20 pr-12 sm:pr-20">
-                    
-                    <!-- SET 1 (Reemplazar estos divs por tus <img> de logos) -->
-                    <!-- Ejemplo de cómo poner un logo: <img src="logo.png" class="h-8 opacity-40 hover:opacity-100 transition" alt="Marca"> -->
-                    
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <span class="text-2xl font-extrabold tracking-widest uppercase">Complicidad</span>
-                    </div>
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <div class="w-6 h-6 rounded-full border-[3px] border-white"></div>
-                        <span class="text-2xl font-bold tracking-tight">AURA</span>
-                    </div>
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <span class="text-2xl font-bold italic tracking-wider">Nova</span>
-                    </div>
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <div class="w-5 h-5 bg-white rotate-45"></div>
-                        <span class="text-2xl font-medium tracking-[0.2em] uppercase">Vértice</span>
-                    </div>
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <span class="text-2xl font-serif italic">Lumière</span>
-                    </div>
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <div class="w-6 h-6 rounded-sm bg-white"></div>
-                        <span class="text-2xl font-bold uppercase">Zenith</span>
-                    </div>
-
-                    <!-- SET 2 (Es un duplicado exacto del SET 1 para que el ciclo sea infinito) -->
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <span class="text-2xl font-extrabold tracking-widest uppercase">Complicidad</span>
-                    </div>
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <div class="w-6 h-6 rounded-full border-[3px] border-white"></div>
-                        <span class="text-2xl font-bold tracking-tight">AURA</span>
-                    </div>
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <span class="text-2xl font-bold italic tracking-wider">Nova</span>
-                    </div>
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <div class="w-5 h-5 bg-white rotate-45"></div>
-                        <span class="text-2xl font-medium tracking-[0.2em] uppercase">Vértice</span>
-                    </div>
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <span class="text-2xl font-serif italic">Lumière</span>
-                    </div>
-                    <div class="flex items-center gap-2 opacity-40 hover:opacity-100 transition duration-300 whitespace-nowrap">
-                        <div class="w-6 h-6 rounded-sm bg-white"></div>
-                        <span class="text-2xl font-bold uppercase">Zenith</span>
-                    </div>
-
-                </div>
-            </div>
-        </div>
-
-        <!-- Testimonios -->
-        <div class="grid md:grid-cols-3 gap-6 mt-16">
-
-            <div class="glass-panel rounded-2xl p-8">
-                <div class="text-teal-400 text-sm mb-4">★★★★★</div>
-                <p class="text-slate-300 leading-relaxed font-medium mb-6">
-                    “Latam5S nos ahorra un montón de trabajo repetitivo. Antes perdíamos horas pidiendo datos uno por uno. Ahora todo está organizado.”
-                </p>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-slate-800"></div>
-                    <div>
-                        <div class="font-bold text-white text-sm">Nombre del cliente</div>
-                        <div class="text-xs text-slate-500">Tienda de Ropa</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="glass-panel rounded-2xl p-8">
-                <div class="text-teal-400 text-sm mb-4">★★★★★</div>
-                <p class="text-slate-300 leading-relaxed font-medium mb-6">
-                    “La facilidad para el equipo es increíble. Hacer los rótulos ahora nos toma segundos en lugar de estar tipeando manualmente cada pedido.”
-                </p>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-slate-800"></div>
-                    <div>
-                        <div class="font-bold text-white text-sm">Nombre del cliente</div>
-                        <div class="text-xs text-slate-500">Ecommerce Calzado</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="glass-panel rounded-2xl p-8">
-                <div class="text-teal-400 text-sm mb-4">★★★★★</div>
-                <p class="text-slate-300 leading-relaxed font-medium mb-6">
-                    “Nos ha permitido procesar el doble de envíos sin tener que contratar más personal para la parte operativa. Cero errores de tipeo.”
-                </p>
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-slate-800"></div>
-                    <div>
-                        <div class="font-bold text-white text-sm">Nombre del cliente</div>
-                        <div class="text-xs text-slate-500">Marca de Accesorios</div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="mt-14 text-center">
-            <a href="#velocidad" class="inline-flex items-center text-teal-400 font-semibold hover:text-teal-300 transition group">
-                Ver cómo funciona
-                <span class="ml-2 group-hover:translate-x-1 transition-transform">→</span>
-            </a>
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 7. VELOCIDAD -->
-<!-- ===================================================== -->
-
-<section id="velocidad" class="border-y border-slate-800/60 bg-slate-900/20 py-24">
-
-    <div class="max-w-7xl mx-auto px-5">
-        
-        <div class="text-center max-w-3xl mx-auto mb-20">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white">
-                Menos tareas repetitivas.
-                <br>
-                <span class="text-slate-400">Más velocidad para tu equipo.</span>
-            </h2>
-        </div>
-
-        <div class="space-y-24">
-            
-            <!-- Demo 1 -->
-            <div class="grid lg:grid-cols-2 gap-10 items-center">
-                <div class="lg:pr-10">
-                    <div class="text-sm font-bold text-teal-400 tracking-widest uppercase mb-3">1. Pedir datos</div>
-                    <h3 class="text-3xl font-bold text-white mb-4">Tu cliente registra sus datos en un formulario.</h3>
-                    <p class="text-slate-400 text-lg leading-relaxed">Sin tener que pedirlos uno por uno por WhatsApp. La información entra limpia, completa y sin errores de tipeo.</p>
-                </div>
-                <div class="rounded-2xl border border-slate-800 bg-slate-950 p-2 shadow-2xl">
-                    <!-- REEMPLAZAR CON CAPTURA DEL FORMULARIO REAL -->
-                    <div class="aspect-[4/3] bg-slate-900 rounded-xl flex items-center justify-center text-slate-600 border border-slate-800 border-dashed">
-                        [Captura Formulario Real]
-                    </div>
-                </div>
-            </div>
-
-            <!-- Demo 2 -->
-            <div class="grid lg:grid-cols-2 gap-10 items-center">
-                <div class="lg:order-2 lg:pl-10">
-                    <div class="text-sm font-bold text-blue-400 tracking-widest uppercase mb-3">2. Rotular</div>
-                    <h3 class="text-3xl font-bold text-white mb-4">Genera los rótulos con 1 clic.</h3>
-                    <p class="text-slate-400 text-lg leading-relaxed">Selecciona tus envíos e imprímelos. Sin escribir, copiar ni digitar los datos de cada envío manualmente.</p>
-                </div>
-                <div class="lg:order-1 rounded-2xl border border-slate-800 bg-slate-950 p-2 shadow-2xl">
-                    <!-- REEMPLAZAR CON CAPTURA DEL BOTÓN DE RÓTULOS REAL -->
-                    <div class="aspect-[4/3] bg-slate-900 rounded-xl flex items-center justify-center text-slate-600 border border-slate-800 border-dashed">
-                        [Captura Generación Rótulos]
-                    </div>
-                </div>
-            </div>
-
-            <!-- Demo 3 -->
-            <div class="grid lg:grid-cols-2 gap-10 items-center">
-                <div class="lg:pr-10">
-                    <div class="text-sm font-bold text-purple-400 tracking-widest uppercase mb-3">3. Registrar</div>
-                    <h3 class="text-3xl font-bold text-white mb-4">Carga masiva para agencias.</h3>
-                    <p class="text-slate-400 text-lg leading-relaxed">Prepara tus envíos mediante carga masiva de Excel (ej. Shalom Pro) en lugar de registrar los envíos uno por uno.</p>
-                </div>
-                <div class="rounded-2xl border border-slate-800 bg-slate-950 p-2 shadow-2xl">
-                    <!-- REEMPLAZAR CON CAPTURA EXCEL/SHALOM REAL -->
-                    <div class="aspect-[4/3] bg-slate-900 rounded-xl flex items-center justify-center text-slate-600 border border-slate-800 border-dashed">
-                        [Captura Excel / Carga Masiva]
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="mt-20 text-center">
-            <a href="#planes" class="px-8 py-4 rounded-xl border border-slate-700 bg-slate-900 text-white font-bold hover:bg-slate-800 transition">
-                Ver planes
-            </a>
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 8. CONTROL -->
-<!-- ===================================================== -->
-
-<section class="py-24 overflow-hidden">
-
-    <div class="max-w-7xl mx-auto px-5">
-        
-        <div class="text-center max-w-3xl mx-auto mb-16">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white">
-                Tu equipo ejecuta. Tú tienes el control.
-            </h2>
-            <p class="mt-6 text-lg text-slate-400 leading-relaxed">
-                Consulta cuántos envíos tienes y en qué estado están, sin tener que preguntar uno por uno a tu equipo.
-            </p>
-        </div>
-
-        <!-- Visualización Dashboard Dashboard -->
-        <div class="relative max-w-5xl mx-auto mt-16">
-            
-            <!-- Glow background -->
-            <div class="absolute inset-0 bg-blue-500/10 blur-[100px] rounded-full"></div>
-
-            <div class="relative rounded-2xl border border-slate-800 bg-slate-900 p-2 shadow-[0_25px_80px_rgba(0,0,0,0.5)]">
-                
-                <!-- REEMPLAZAR CON IMAGEN DEL DASHBOARD REAL -->
-                <div class="aspect-[16/9] bg-slate-950 rounded-xl flex items-center justify-center text-slate-600 border border-slate-800 border-dashed relative">
-                    [Captura Dashboard General Real]
-
-                    <!-- Tooltips Simulados Flotantes (opcionales para ilustrar el punto) -->
-                    <div class="absolute -top-6 -left-6 bg-slate-800 text-white px-4 py-2 rounded-lg border border-slate-700 shadow-xl hidden md:block animate-float-slow">
-                        <div class="text-xs text-teal-400 font-bold uppercase">Cantidad & Courier</div>
-                        <div class="text-sm">Resumen de envíos pendientes</div>
-                    </div>
-
-                    <div class="absolute top-1/4 -right-8 bg-slate-800 text-white px-4 py-2 rounded-lg border border-slate-700 shadow-xl hidden md:block animate-float-slow" style="animation-delay: 1s;">
-                        <div class="text-xs text-blue-400 font-bold uppercase">Estado</div>
-                        <div class="text-sm">Pendiente, En preparación...</div>
-                    </div>
-
-                    <div class="absolute -bottom-6 left-1/4 bg-slate-800 text-white px-4 py-2 rounded-lg border border-slate-700 shadow-xl hidden md:block animate-float-slow" style="animation-delay: 2s;">
-                        <div class="text-xs text-purple-400 font-bold uppercase">Fecha y Hora</div>
-                        <div class="text-sm">Control por orden de ingreso</div>
-                    </div>
-                </div>
-
-            </div>
-
-        </div>
-
-        <div class="mt-16 text-center">
-            <a href="TU_URL_DE_DEMO" class="inline-flex items-center text-teal-400 font-semibold hover:text-teal-300 transition group">
-                Conoce el dashboard
-                <span class="ml-2 group-hover:translate-x-1 transition-transform">→</span>
-            </a>
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 9. TODO EN UN SOLO LUGAR -->
-<!-- ===================================================== -->
-
-<section class="border-y border-slate-800/60 bg-slate-900/30 py-24 relative overflow-hidden">
-
-    <div class="absolute inset-0 soft-grid opacity-30"></div>
-
-    <div class="relative max-w-7xl mx-auto px-5">
-        
-        <div class="text-center max-w-3xl mx-auto mb-16">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white">
-                Todo tu proceso de envíos, en un solo lugar.
-            </h2>
-            <p class="mt-4 text-lg text-slate-400 leading-relaxed">
-                Desde que tu cliente registra su destino hasta que tu equipo deja el envío listo para despachar.
-            </p>
-        </div>
-
-        <!-- Ecosistema Visual -->
-        <div class="max-w-4xl mx-auto py-12 relative flex justify-center items-center h-[400px]">
-            
-            <!-- Center Node -->
-            <div class="z-20 w-32 h-32 rounded-full bg-slate-950 border-2 border-teal-500 shadow-[0_0_60px_rgba(20,184,166,0.2)] flex flex-col items-center justify-center">
-                <div class="font-bold text-xl text-white">Latam5S</div>
-            </div>
-
-            <!-- Surrounding Modules (Desktop layout using absolute positioning) -->
-            <!-- Top -->
-            <div class="absolute top-0 left-1/2 -translate-x-1/2 glass-panel px-6 py-3 rounded-xl border border-slate-700 font-semibold text-white">Formulario</div>
-            <!-- Bottom -->
-            <div class="absolute bottom-0 left-1/2 -translate-x-1/2 glass-panel px-6 py-3 rounded-xl border border-slate-700 font-semibold text-white">Reportes</div>
-            <!-- Left top -->
-            <div class="absolute top-1/4 left-0 glass-panel px-6 py-3 rounded-xl border border-slate-700 font-semibold text-white">Envíos</div>
-            <!-- Left bottom -->
-            <div class="absolute bottom-1/4 left-0 glass-panel px-6 py-3 rounded-xl border border-slate-700 font-semibold text-white">Dashboard</div>
-            <!-- Right top -->
-            <div class="absolute top-1/4 right-0 glass-panel px-6 py-3 rounded-xl border border-slate-700 font-semibold text-white">Rótulos</div>
-            <!-- Right bottom -->
-            <div class="absolute bottom-1/4 right-0 glass-panel px-6 py-3 rounded-xl border border-slate-700 font-semibold text-white">Estados</div>
-
-            <!-- Connecting Lines (SVG) -->
-            <svg class="absolute inset-0 w-full h-full -z-10 pointer-events-none stroke-slate-700" stroke-width="1.5" fill="none">
-                <!-- Center point is approx (50%, 50%) -->
-                <path d="M 50% 50% L 50% 15%"/> <!-- to top -->
-                <path d="M 50% 50% L 50% 85%"/> <!-- to bottom -->
-                <path d="M 50% 50% L 15% 30%"/> <!-- to left top -->
-                <path d="M 50% 50% L 15% 70%"/> <!-- to left bottom -->
-                <path d="M 50% 50% L 85% 30%"/> <!-- to right top -->
-                <path d="M 50% 50% L 85% 70%"/> <!-- to right bottom -->
-            </svg>
-            
-        </div>
-
-        <!-- Agencias / Operadores -->
-        <div class="mt-12 flex flex-wrap justify-center gap-3 max-w-2xl mx-auto">
-            <span class="px-4 py-2 bg-slate-900 border border-slate-800 rounded-full text-sm text-slate-400">Shalom</span>
-            <span class="px-4 py-2 bg-slate-900 border border-slate-800 rounded-full text-sm text-slate-400">Olva</span>
-            <span class="px-4 py-2 bg-slate-900 border border-slate-800 rounded-full text-sm text-slate-400">Marvisur</span>
-            <span class="px-4 py-2 bg-slate-900 border border-slate-800 rounded-full text-sm text-slate-400">Delivery</span>
-            <span class="px-4 py-2 bg-slate-900 border border-slate-800 rounded-full text-sm text-slate-400">Recojo</span>
-            <span class="px-4 py-2 bg-slate-900 border border-slate-800 rounded-full text-sm text-slate-400">Encomienda</span>
-        </div>
-
-        <div class="mt-16 text-center">
-            <a href="#planes" class="px-8 py-4 rounded-xl border border-slate-700 bg-slate-900 text-white font-bold hover:bg-slate-800 transition">
-                Ver planes
-            </a>
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 10. CÓMO EMPEZAR -->
-<!-- ===================================================== -->
-
-<section class="py-24">
-
-    <div class="max-w-5xl mx-auto px-5">
-        
-        <div class="text-center mb-16">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white">
-                Empieza en unos pasos.
-            </h2>
-            <p class="mt-4 text-lg text-slate-400">
-                Pruébalo con tu propio negocio. No tienes que imaginar cómo funciona.
-            </p>
-        </div>
-
-        <div class="relative">
-            <!-- Timeline Line -->
-            <div class="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-slate-800 -translate-x-1/2"></div>
-
-            <div class="space-y-12 relative z-10">
-                
-                <!-- Paso 1 & 2 -->
-                <div class="grid md:grid-cols-2 gap-8 md:gap-16">
-                    <div class="glass-panel p-6 rounded-2xl md:text-right border border-slate-800">
-                        <div class="text-teal-400 font-bold mb-2">Paso 1</div>
-                        <h3 class="text-xl font-bold text-white mb-2">Solicita tu cuenta</h3>
-                        <p class="text-slate-400 text-sm">Elige tu plan y escríbenos por WhatsApp.</p>
-                    </div>
-                    <div class="glass-panel p-6 rounded-2xl border border-slate-800">
-                        <div class="text-teal-400 font-bold mb-2">Paso 2</div>
-                        <h3 class="text-xl font-bold text-white mb-2">Recibe tus credenciales</h3>
-                        <p class="text-slate-400 text-sm">Creamos tu cuenta y te enviamos el acceso seguro.</p>
-                    </div>
-                </div>
-
-                <!-- Paso 3 & 4 -->
-                <div class="grid md:grid-cols-2 gap-8 md:gap-16">
-                    <div class="glass-panel p-6 rounded-2xl md:text-right border border-slate-800 relative">
-                        <div class="text-teal-400 font-bold mb-2">Paso 3</div>
-                        <h3 class="text-xl font-bold text-white mb-2">Configura tu formulario</h3>
-                        <p class="text-slate-400 text-sm">Define cómo quieres que tus clientes registren sus datos.</p>
-                    </div>
-                    <div class="glass-panel p-6 rounded-2xl border border-teal-500/40 bg-teal-500/5 shadow-[0_0_30px_rgba(20,184,166,0.1)]">
-                        <div class="text-teal-400 font-bold mb-2">Paso 4 (Pruébalo ahora)</div>
-                        <h3 class="text-xl font-bold text-white mb-2">Pruébalo como cliente</h3>
-                        <p class="text-slate-400 text-sm mb-4">Abre tu propio formulario y registra un envío para comprobar el flujo de trabajo real.</p>
-                        <a href="TU_URL_DEL_FORMULARIO_DEMO" target="_blank" class="inline-block px-4 py-2 bg-slate-800 rounded border border-slate-700 text-sm font-semibold hover:bg-slate-700 transition">
-                            Simular un registro →
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Paso 5 & 6 -->
-                <div class="grid md:grid-cols-2 gap-8 md:gap-16">
-                    <div class="glass-panel p-6 rounded-2xl md:text-right border border-slate-800">
-                        <div class="text-teal-400 font-bold mb-2">Paso 5</div>
-                        <h3 class="text-xl font-bold text-white mb-2">Compártelo con tus clientes</h3>
-                        <p class="text-slate-400 text-sm">Empieza a recibir datos de envío de forma completamente ordenada.</p>
-                    </div>
-                    <div class="glass-panel p-6 rounded-2xl border border-slate-800">
-                        <div class="text-teal-400 font-bold mb-2">Paso 6</div>
-                        <h3 class="text-xl font-bold text-white mb-2">Activa Pro cuando estés listo</h3>
-                        <p class="text-slate-400 text-sm">Desde tu propia cuenta puedes activar tus 7 días de Pro con un clic para escalar la operación.</p>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <div class="mt-16 text-center">
-            <a href="#planes" class="px-8 py-4 rounded-xl border border-slate-700 bg-slate-900 text-white font-bold hover:bg-slate-800 transition">
-                Ver planes
-            </a>
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 11. PLANES -->
-<!-- ===================================================== -->
-
-<section id="planes" class="border-y border-slate-800/60 bg-slate-900/20 py-24">
-
-    <div class="max-w-5xl mx-auto px-5">
-        
-        <div class="text-center max-w-2xl mx-auto mb-16">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white">Empieza con lo que necesitas hoy.</h2>
-            <p class="mt-4 text-slate-400 text-lg">El Plan Básico es la forma más sencilla de empezar. Cuando necesites operar desde el dashboard, puedes pasar a Pro.</p>
-        </div>
-
-        <div class="grid md:grid-cols-2 gap-8">
-            
-            <!-- PLAN BÁSICO -->
-            <div class="glass-panel rounded-3xl p-8 flex flex-col justify-between">
+    <main>
+        <section class="hero">
+            <div class="wrap heroGrid">
                 <div>
-                    <h3 class="text-lg font-bold text-white tracking-widest uppercase mb-2">Plan Básico</h3>
-                    <p class="text-slate-400 text-sm mb-6">Ideal para empezar</p>
-                    <div class="text-5xl font-bold text-white mb-8">S/0</div>
-
-                    <p class="font-bold text-white mb-4">Formulario para siempre:</p>
-                    <ul class="space-y-4 text-sm text-slate-300">
-                        <li class="flex gap-3"><span class="text-teal-400">✓</span> Configura tu propio formulario.</li>
-                        <li class="flex gap-3"><span class="text-teal-400">✓</span> Compártelo con tus clientes.</li>
-                        <li class="flex gap-3"><span class="text-teal-400">✓</span> Recibe las respuestas directamente en el WhatsApp de tu tienda.</li>
-                    </ul>
-
-                    <div class="mt-8 p-4 bg-slate-900/80 rounded-xl border border-slate-800">
-                        <p class="font-bold text-white text-sm mb-1">Beneficio adicional</p>
-                        <p class="text-xs text-slate-400">7 días de Pro incluidos. Actívalos tú mismo cuando estés listo. Tienes acceso al dashboard y a todas las funciones Pro.</p>
+                    <span class="eyebrow">¿Vendes por Live y redes sociales?</span>
+                    <h1>Procesa más envíos, en menos tiempo.</h1>
+                    <p class="heroCopy">Tu cliente registra su destino exacto. Latam5S organiza los datos y tú procesas todo desde un solo panel.</p>
+                    <div class="heroActions">
+                        <a class="btn primary" href="#planes">Ver planes</a>
+                        <a class="btn" href="#demo">Probar el formulario</a>
+                    </div>
+                    <p class="micro">✓ Empieza gratis &nbsp;&nbsp;✓ Sin tarjeta de crédito</p>
+                </div>
+                <div class="product">
+                    <div class="browser">
+                        <div class="top"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+                        <div class="screen">
+                            <div class="dash">
+                                <span>Mis envíos</span>
+                                <span class="mini">+ Nuevo envío</span>
+                            </div>
+                            <div class="stats">
+                                <div class="stat"><small>Pendientes</small><strong>18</strong></div>
+                                <div class="stat"><small>En preparación</small><strong>12</strong></div>
+                                <div class="stat"><small>Enviados</small><strong>64</strong></div>
+                            </div>
+                            <div class="orders">
+                                <div class="order"><b>María López</b><span class="pill p">Pendiente</span><span>Shalom</span></div>
+                                <div class="order"><b>Valeria Shop</b><span class="pill r">Empaquetado</span><span>Olva</span></div>
+                                <div class="order"><b>Andrea Moda</b><span class="pill s">Enviado</span><span>Delivery</span></div>
+                                <div class="order"><b>Luciana Store</b><span class="pill r">Preparado</span><span>Shalom</span></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <a href="TU_URL_WHATSAPP_BASIC" class="mt-8 block w-full text-center py-3.5 rounded-xl border border-slate-700 text-white font-bold hover:bg-slate-800 transition">
-                    Quiero el Básico
-                </a>
             </div>
+        </section>
 
-            <!-- PLAN PRO -->
-            <div class="bg-slate-900 rounded-3xl p-8 flex flex-col justify-between border-2 border-teal-500 shadow-[0_0_40px_rgba(20,184,166,0.15)] relative overflow-hidden">
-                <div class="absolute top-0 right-0 bg-teal-500 text-slate-950 text-xs font-bold px-4 py-1.5 rounded-bl-xl">Para Escalar</div>
-                
+        <section class="darkSec">
+            <div class="wrap grid2">
                 <div>
-                    <h3 class="text-lg font-bold text-teal-400 tracking-widest uppercase mb-2">Plan Pro</h3>
-                    <p class="text-slate-400 text-sm mb-6">Para negocios que necesitan operar.</p>
-                    
-                    <div class="flex items-end gap-2 mb-2">
-                        <div class="text-5xl font-bold text-white">S/49.90</div>
-                        <div class="text-slate-500 pb-1">/ mes</div>
+                    <span class="kicker">El problema</span>
+                    <h2>Cuando creces, procesar cada envío 1×1 se vuelve interminable.</h2>
+                    <p class="lead">Pedir datos por WhatsApp, corregir información, buscar agencias, hacer rótulos y registrar cada envío consume cada vez más tiempo.</p>
+                    <div class="problemList">
+                        <div class="problem">✗ Pedir datos por WhatsApp</div>
+                        <div class="problem">✗ Buscar sedes para envios por Agencia</div>
+                        <div class="problem">✗ Buscar la información en chats</div>
+                        <div class="problem">✗ Hacer rótulos 1×1</div>
+                        <div class="problem">✗ Registrar envíos 1x1</div>
+                        <div class="problem">✗ No saber que falta procesar</div>
                     </div>
-                    
-                    <div class="flex gap-3 text-xs text-slate-500 mb-8 border-b border-slate-800 pb-4">
-                        <span>S/269.90 / 6 meses</span>
-                        <span>·</span>
-                        <span>S/499 / año</span>
-                    </div>
-
-                    <p class="font-bold text-white mb-4">Todo el dashboard y las funciones Pro:</p>
-                    <ul class="space-y-4 text-sm text-slate-300">
-                        <li class="flex gap-3"><span class="text-teal-400">✓</span> Resumen de envíos</li>
-                        <li class="flex gap-3"><span class="text-teal-400">✓</span> Envíos organizados y Estados</li>
-                        <li class="flex gap-3"><span class="text-teal-400">✓</span> Rótulos en 1 clic</li>
-                        <li class="flex gap-3"><span class="text-teal-400">✓</span> Reportes y herramientas de procesamiento</li>
-                        <li class="flex gap-3"><span class="text-teal-400">✓</span> Carga masiva para Shalom Pro</li>
-                    </ul>
                 </div>
+                
+                <div class="time" id="chart-trigger">
+                    <span class="kicker">Tiempo y Errores acumulados</span>
+                    
+                    <div class="chart-container">
+                        <div class="y-axis-label">Tiempo</div>
+                        <div class="x-axis-label">Más envíos</div>
+                        
+                        <div class="chart-tooltip tooltip-chaos">Sin Latam5S</div>
+                        <div class="chart-tooltip tooltip-control">Con Latam5S</div>
 
-                <a href="TU_URL_WHATSAPP_PRO" class="mt-8 block w-full text-center py-3.5 rounded-xl bg-white text-slate-950 font-bold hover:bg-slate-100 transition shadow-lg shadow-white/10">
-                    Quiero Pro
-                </a>
+                        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width: 100%; height: 100%; overflow: visible;">
+                            <defs>
+                                <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+                                    <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155" />
+                                </marker>
+                            </defs>
+                            
+                            <line x1="0" y1="100" x2="0" y2="0" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)" />
+                            <line x1="0" y1="100" x2="100" y2="100" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)" />
+
+                            <path d="M 0 95 C 40 90, 55 50, 100 -20" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" class="chart-line path-chaos" />
+                            <path d="M 0 95 L 100 70" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" class="chart-line path-control" />
+                        </svg>
+                    </div>
+                    
+                    <div class="chart-footer">
+                        Más envíos <b>no deberían significar</b> más trabajo repetitivo.
+                    </div>
+                </div>
             </div>
+        </section>
 
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 12. ¿QUÉ TE DETIENE? -->
-<!-- ===================================================== -->
-
-<section class="py-24">
-
-    <div class="max-w-6xl mx-auto px-5">
-        
-        <div class="text-center mb-16">
-            <h2 class="text-3xl sm:text-4xl font-bold text-white">¿Todavía tienes dudas sobre cambiar tu proceso?</h2>
-        </div>
-
-        <div class="grid md:grid-cols-2 gap-10 lg:gap-16">
-            
-            <div>
-                <h3 class="text-lg font-bold text-white mb-3">“Mi equipo tendrá que aprender algo nuevo.”</h3>
-                <p class="text-slate-400 leading-relaxed">
-                    Empiezas configurando tu formulario y el proceso se construye paso a paso. No necesitas cambiar la forma en que vendes ni detener tu operación.
-                </p>
+        <section id="como">
+            <div class="wrap text-center">
+                <span class="kicker" style="text-align: center; display: block;">La solución en 3 pasos</span>
+                <h2 style="text-align: center;">Tu cliente ve un link. Tú ves todo organizado.</h2>
+                <p class="lead" style="margin: 0 auto; text-align: center;">Comparte tu formulario y recibe los datos de cada envío listos para procesar.</p>
+                <div class="steps">
+                    <article class="card">
+                        <div class="num">01</div>
+                        <h3>Configura tu formulario</h3>
+                        <p class="lead" style="font-size: 16px;">Elige las opciones de envío que necesitas y genera tu link personalizado en 1 minuto.</p>
+                    </article>
+                    <article class="card">
+                        <div class="num">02</div>
+                        <h3>Comparte tu link</h3>
+                        <p class="lead" style="font-size: 16px;">Envíalo por WhatsApp, Instagram, TikTok o donde atiendas a tus clientes.</p>
+                    </article>
+                    <article class="card">
+                        <div class="num">03</div>
+                        <h3>Procesa tus envíos</h3>
+                        <p class="lead" style="font-size: 16px;">Encuentra cada envío en un solo panel, gestiona sus estados, imprime rótulos y genera archivos para las agencias.</p>
+                    </article>
+                </div>
             </div>
+        </section>
 
-            <div>
-                <h3 class="text-lg font-bold text-white mb-3">“Todavía no tengo suficiente volumen.”</h3>
-                <p class="text-slate-400 leading-relaxed">
-                    Puedes empezar con el Plan Básico a S/0 y mantener tu formulario activo. Cuando necesites más capacidad operativa, activas Pro.
-                </p>
+        <section class="showcase" id="funciones">
+            <div class="wrap grid2">
+                <div>
+                    <span class="kicker">Todo en un solo lugar</span>
+                    <h2>Todo lo que necesitas para procesar tus envíos.</h2>
+                    <p class="lead">La información que antes estaba repartida en chats queda organizada para que puedas gestionar tus envíos desde un solo lugar.</p>
+                    <div class="features">
+                        <div class="feature">
+                            <div class="check">✓</div>
+                            <div>
+                                <strong>Datos organizados</strong>
+                                <span>Tu cliente registra directamente la información necesaria para su envío.</span>
+                            </div>
+                        </div>
+                        <div class="feature">
+                            <div class="check">✓</div>
+                            <div>
+                                <strong>Estados de envío</strong>
+                                <span>Identifica rápidamente qué está pendiente, en preparación, empaquetado o enviado.</span>
+                            </div>
+                        </div>
+                        <div class="feature">
+                            <div class="check">✓</div>
+                            <div>
+                                <strong>Rótulos listos para imprimir</strong>
+                                <span>Genera tus rótulos sin volver a escribir los datos de cada envío.</span>
+                            </div>
+                        </div>
+                        <div class="feature">
+                            <div class="check">✓</div>
+                            <div>
+                                <strong>Exportación y carga masiva</strong>
+                                <span>Descarga los datos de envío en Excel para control interno o carga masiva en plataformas compatibles.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mock" id="demo">
+                    <div class="mock-badge">Lo que ve tu cliente</div>
+                    <div class="form text-center">
+                        <div style="width: 56px; height: 56px; background: #f1f5f9; border-radius: 50%; margin: 0 auto 16px; display: grid; place-items:center; font-size: 24px;">🛍️</div>
+                        <h3>Tu Tienda Online</h3>
+                        <p style="color: #64748b; font-size: 13px; margin-bottom: 24px;">Completa tus datos para programar el envío</p>
+                        
+                        <div class="field">
+                            <label>Nombre y Apellidos</label>
+                            <div class="input">Ej. Juan Pérez</div>
+                        </div>
+                        <div class="field" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div><label>WhatsApp</label><div class="input">999 999 999</div></div>
+                            <div><label>DNI / CE</label><div class="input">12345678</div></div>
+                        </div>
+                        <div class="field">
+                            <label>Agencia de Envío</label>
+                            <div class="input">Selecciona Shalom, Olva, etc. ▾</div>
+                        </div>
+                        <button class="submit" onclick="alert('En Latam5S, al presionar este botón los datos viajan ordenados directamente a tu panel de control.')">Enviar mis datos</button>
+                    </div>
+                </div>
             </div>
+        </section>
 
-            <div>
-                <h3 class="text-lg font-bold text-white mb-3">“No quiero cambiar un proceso que ya funciona.”</h3>
-                <p class="text-slate-400 leading-relaxed">
-                    Latam5S no cambia cómo vendes. Ordena y controla la parte final de los envíos para que tu equipo pueda procesarlos más rápido sin perder información.
-                </p>
+        <!-- Nueva Sección Comparativa (Antes vs Con Latam5S) -->
+        <section style="background: #fff;">
+            <div class="wrap text-center">
+                <span class="kicker" style="text-align: center; display: block;">Menos vueltas. Más envíos procesados.</span>
+                <h2 style="text-align: center;">Deja de procesar tus envíos 1×1.</h2>
+                
+                <div class="compare">
+                    <article class="card before">
+                        <h3 style="color: #64748b; font-size: 20px;">ANTES</h3>
+                        <div class="list text-left">
+                            <div><b class="x">✗</b> Pedir datos por WhatsApp</div>
+                            <div><b class="x">✗</b> Buscar sedes para envios por Agencia</div>
+                            <div><b class="x">✗</b> Buscar información en chats</div>
+                            <div><b class="x">✗</b> Hacer rótulos 1×1</div>
+                            <div><b class="x">✗</b> Registrar envíos 1×1</div>
+                            <div><b class="x">✗</b> No saber qué falta procesar</div>
+                        </div>
+                    </article>
+                    
+                    <article class="card after">
+                        <h3 style="color: var(--accent); font-size: 20px;">CON LATAM5S</h3>
+                        <div class="list text-left">
+                            <div><b class="ok">✓</b> Tu cliente registra sus datos</div>
+                            <div><b class="ok">✓</b> Información organizada</div>
+                            <div><b class="ok">✓</b> Rótulos listos para imprimir</div>
+                            <div><b class="ok">✓</b> Exportación y carga masiva</div>
+                            <div><b class="ok">✓</b> Estados para saber qué sigue</div>
+                        </div>
+                    </article>
+                </div>
             </div>
+        </section>
 
-            <div>
-                <h3 class="text-lg font-bold text-white mb-3">“Quiero comprobar que realmente me sirve.”</h3>
-                <p class="text-slate-400 leading-relaxed">
-                    Puedes empezar con el Plan Básico y activar tus 7 días de Pro cuando quieras para probar el dashboard real y sus funciones operativas.
-                </p>
+        <section class="plans" id="planes">
+            <div class="wrap text-center">
+                <span class="kicker" style="text-align: center; display: block;">Planes Transparentes</span>
+                <h2 style="text-align: center;">Empieza gratis. <br>Pásate a PRO cuando lo necesites.</h2>
+                
+                <div class="planGrid text-left">
+                    <article class="card plan">
+                        <h3>Plan Básico</h3>
+                        <div class="price">S/0 <small>para siempre</small></div>
+                        <p>Para recibir datos de envío completos y de forma ordenada.</p>
+                        <ul>
+                            <li>Acceso a la plataforma</li>
+                            <li>Link único para tu formulario personalizado</li>
+                            <li>Recibe los datos de envío en tu WhatsApp</li>
+                            <li>Gratis para siempre</li>
+                            <li style="color: var(--accent); font-weight: 800; background: var(--accent-glow); padding: 8px 12px; border-radius: 8px;">Incluye 7 días gratis de PRO</li>
+                        </ul>
+                        <a class="btn" href="#demo">Empezar gratis</a>
+                    </article>
+                    
+                    <article class="card plan pro">
+                        <span class="badge">Para crecer</span>
+                        <h3>Plan PRO</h3>
+                        <div class="price">S/49.90 <small>/mes</small></div>
+                        <p>Para procesar más envíos en menos tiempo, desde un solo lugar.</p>
+                        <ul>
+                            <li>Todo lo del plan Básico</li>
+                            <li>Panel de control centralizado</li>
+                            <li>Rótulos listos para imprimir</li>
+                            <li>Estados de envío</li>
+                            <li>Exportación y carga masiva</li>
+                            <li>Resumen de envíos por courier</li>
+                            <li>Filtros avanzados</li>
+                            <li>Búsqueda e histórico completo</li>
+                        </ul>
+                        <a class="btn primary" href="#demo">Lo necesito</a>
+                    </article>
+                </div>
             </div>
+        </section>
 
+        <section style="background: #f8fafc;">
+            <div class="wrap" style="text-align:center">
+                <span class="kicker" style="text-align: center; display: block;">Resultados</span>
+                <p class="socialNum">+500 marcas</p>
+                <p class="lead" style="margin:auto">y más de 100 mil envíos procesados.</p>
+                <div class="testimonial">
+                    <div style="font-size: 40px; color: var(--accent); opacity: 0.3; line-height: 0; position: absolute; top: 40px; left: -20px;">"</div>
+                    <p class="quote">Antes pasaba 4 horas copiando datos de WhatsApp a Excel. Con Latam5S, el cliente llena el formulario, yo lo apruebo y despacho 100 envíos en solo 20 minutos. Mi negocio por fin es escalable.</p>
+                    <div class="person">Testimonio de cliente real</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="faq">
+            <div class="wrap">
+                <span class="kicker" style="text-align: center; display: block;">Preguntas frecuentes</span>
+                <h2 style="text-align: center;">¿Tienes dudas?</h2>
+                <div class="faq">
+                    <details>
+                        <summary>¿Tengo que instalar algún programa?</summary>
+                        <p>Cero programas. Puedes revisar tus pedidos, descargar tus listas y configurar tus agencias desde cualquier celular, tablet o laptop con internet.</p>
+                    </details>
+                    <details>
+                        <summary>¿Mi cliente tiene que crear una cuenta?</summary>
+                        <p>No. Tu cliente simplemente recibe tu link personalizado, ingresa y completa sus datos de envío directamente como un formulario rápido.</p>
+                    </details>
+                    <details>
+                        <summary>¿Qué pasa si mi cliente se equivoca al llenar el formulario?</summary>
+                        <p>Tú tienes el control. Los datos pueden revisarse y editarse desde tu flujo de procesamiento antes de generar las etiquetas o realizar el envío final.</p>
+                    </details>
+                    <details>
+                        <summary>¿Puedo imprimir desde cualquier impresora o rotulador?</summary>
+                        <p>Sí, Latam5S genera los rótulos en formatos estándar PDF preparados para impresión. Puedes imprimirlos en impresoras normales (A4) o impresoras térmicas de etiquetas (rotuladores).</p>
+                    </details>
+                </div>
+            </div>
+        </section>
+
+        <section class="final">
+            <div class="wrap">
+                <h2>Procesa más envíos, en menos tiempo.</h2>
+                <p>Recuerda: si sabes usar WhatsApp, sabes usar Latam5S.</p>
+                <a class="btn primary" href="#planes" style="height: 56px; font-size: 16px; padding: 0 32px;">Quiero crear mi link</a>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="wrap foot">
+            <div>© 2026 Latam5S | LATAM5S S.A.C. | RUC: 20615809781</div>
+            <div class="footlinks">
+                <a href="#">Privacidad</a>
+                <a href="#">Términos y condiciones</a>
+                <a href="#">Canal Oficial</a>
+            </div>
         </div>
+    </footer>
 
-        <div class="mt-20 text-center">
-            <a href="#planes" class="inline-flex items-center text-teal-400 font-semibold hover:text-teal-300 transition group">
-                Ver planes
-                <span class="ml-2 group-hover:translate-x-1 transition-transform">→</span>
-            </a>
-        </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chartObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.querySelectorAll('.chart-line').forEach(line => {
+                            line.classList.add('animated');
+                        });
+                        entry.target.querySelectorAll('.chart-tooltip').forEach(tooltip => {
+                            tooltip.classList.add('animated');
+                        });
+                    }
+                });
+            }, { threshold: 0.4 }); 
 
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- 13. CTA FINAL -->
-<!-- ===================================================== -->
-
-<section class="border-t border-slate-800/60 bg-gradient-to-b from-slate-900/50 to-slate-950 py-24">
-
-    <div class="max-w-3xl mx-auto px-5 text-center">
-        
-        <h2 class="text-4xl sm:text-5xl font-bold tracking-tight text-white mb-6">
-            Haz que tu equipo procese más envíos, en menos tiempo.
-        </h2>
-
-        <p class="text-lg text-slate-400 mb-10">
-            Empieza organizando tus envíos con el Plan Básico y activa Pro cuando estés listo para llevar toda tu operación a un solo lugar.
-        </p>
-
-        <div class="flex flex-col sm:flex-row justify-center gap-4">
-            <a href="#planes" class="px-8 py-4 rounded-xl bg-white text-slate-950 font-bold hover:bg-slate-100 transition shadow-lg shadow-white/10">
-                Ver planes
-            </a>
-            <a href="TU_URL_DEL_FORMULARIO_DEMO" target="_blank" class="px-8 py-4 rounded-xl border border-slate-700 bg-slate-900 text-white font-bold hover:bg-slate-800 transition">
-                Probar el formulario
-            </a>
-        </div>
-
-    </div>
-
-</section>
-
-
-<!-- ===================================================== -->
-<!-- FOOTER -->
-<!-- ===================================================== -->
-
-<footer class="border-t border-slate-800 bg-slate-950 py-12">
-
-    <div class="max-w-7xl mx-auto px-5 flex flex-col md:flex-row justify-between items-center gap-6">
-        
-        <div class="text-center md:text-left">
-            <div class="font-bold text-white text-lg tracking-tight mb-1">Latam5S</div>
-            <div class="text-sm text-slate-500">Sistema para organizar tus envíos en una sola plataforma.</div>
-        </div>
-
-        <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-500">
-            <a href="TU_URL_TERMINOS" class="hover:text-white transition">Términos y condiciones</a>
-            <a href="TU_URL_PRIVACIDAD" class="hover:text-white transition">Política de privacidad</a>
-            <a href="TU_URL_WHATSAPP" class="hover:text-white transition">Contacto / WhatsApp</a>
-        </div>
-
-    </div>
-
-</footer>
-
+            const trigger = document.getElementById('chart-trigger');
+            if (trigger) {
+                chartObserver.observe(trigger);
+            }
+        });
+    </script>
 </body>
 </html>
